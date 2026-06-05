@@ -1,0 +1,29 @@
+# Local SQLite Database
+backend/seven.db
+
+# Virtual Environments
+backend/venv/
+venv/
+.venv/
+
+# Node Modules & Next.js Build Files
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Local Environment Configurations
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Python Caching & Compiled Files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+Desktop.ini
