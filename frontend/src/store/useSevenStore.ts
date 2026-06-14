@@ -287,7 +287,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     if (!userProfile) return;
     if (ws) return; // already connecting/connected
 
-    const socket = new WebSocket(`${typeof window !== \'undefined\' ? (window.location.protocol === \'https:\' ? \'wss:\' : \'ws:\') + \'//\' + window.location.host : \'\'}/ws/${userProfile.user_id}`);
+    const socket = new WebSocket(`${typeof window !== 'undefined' ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host : ''}/ws/${userProfile.user_id}`);
     
     socket.onopen = () => {
       set({ ws: socket, wsConnected: true });
