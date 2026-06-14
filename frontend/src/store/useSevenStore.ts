@@ -239,7 +239,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     if (!userProfile) return;
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/users/${userProfile.user_id}/capabilities`, {
+      const res = await fetch(`/api/users/${userProfile.user_id}/capabilities`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -287,7 +287,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     if (!userProfile) return;
     if (ws) return; // already connecting/connected
 
-    const socket = new WebSocket(`ws://127.0.0.1:8080/ws/${userProfile.user_id}`);
+    const socket = new WebSocket(`${typeof window !== \'undefined\' ? (window.location.protocol === \'https:\' ? \'wss:\' : \'ws:\') + \'//\' + window.location.host : \'\'}/ws/${userProfile.user_id}`);
     
     socket.onopen = () => {
       set({ ws: socket, wsConnected: true });
@@ -364,7 +364,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchAllUsers: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/auth/users", {
+      const res = await fetch("/api/auth/users", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -378,7 +378,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
 
   fetchCapabilities: async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/capabilities");
+      const res = await fetch("/api/capabilities");
       if (res.ok) {
         const caps = await res.json();
         set({ capabilities: caps });
@@ -394,8 +394,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/dashboard/overview?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/dashboard/overview";
+        ? `/api/v1/dashboard/overview?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/dashboard/overview";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -412,7 +412,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchBusinessAnalytics: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/business-analytics", {
+      const res = await fetch("/api/v1/business-analytics", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -428,7 +428,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchLeads: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/leads", {
+      const res = await fetch("/api/v1/leads", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -446,7 +446,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   updateLeadStatus: async (leadId: string, status: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/status`, {
+      const res = await fetch(`/api/v1/leads/${leadId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -471,7 +471,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   updateLeadContact: async (leadId: string, contactData: any) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}`, {
+      const res = await fetch(`/api/v1/leads/${leadId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -493,7 +493,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   assignLead: async (leadId: string, userId: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/assign/${userId}`, {
+      const res = await fetch(`/api/v1/leads/${leadId}/assign/${userId}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -523,7 +523,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   }) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/manual", {
+      const res = await fetch("/api/v1/leads/manual", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -544,7 +544,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   triggerFetchLeads: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/fetch", {
+      const res = await fetch("/api/v1/leads/fetch", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -563,7 +563,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   pullApolloLeads: async (query: string, location?: string, limit?: number) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/pull", {
+      const res = await fetch("/api/v1/leads/pull", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -587,7 +587,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   enrichLead: async (leadId: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/enrich`, {
+      const res = await fetch(`/api/v1/leads/${leadId}/enrich`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -609,7 +609,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   verifyLeadEmail: async (leadId: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/verify`, {
+      const res = await fetch(`/api/v1/leads/${leadId}/verify`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -631,7 +631,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   runScraper: async (targetUrls: string[], depth?: number) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/scrape/run", {
+      const res = await fetch("/api/v1/scrape/run", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -651,7 +651,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   findEmail: async (domain: string, firstName: string, lastName: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/email/find", {
+      const res = await fetch("/api/v1/email/find", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -674,7 +674,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   verifyEmail: async (email: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/email/verify", {
+      const res = await fetch("/api/v1/email/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -701,8 +701,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/worklogs";
+        ? `/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/worklogs";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -719,8 +719,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/worklogs";
+        ? `/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/worklogs";
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -747,7 +747,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchAdminUsers: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/admin/users", {
+      const res = await fetch("/api/v1/admin/users", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -761,7 +761,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   updateUserMetadata: async (userId: string, updateData: any) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/admin/users/${userId}`, {
+      const res = await fetch(`/api/v1/admin/users/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -782,7 +782,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchProjects: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/projects", {
+      const res = await fetch("/api/projects", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -804,7 +804,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   }) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/projects", {
+      const res = await fetch("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -824,7 +824,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   updateProject: async (projectId: string, updateData: any) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -844,7 +844,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   deleteProject: async (projectId: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/projects/${projectId}`, {
+      const res = await fetch(`/api/projects/${projectId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -863,7 +863,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchTasks: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/tasks", {
+      const res = await fetch("/api/tasks", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -877,7 +877,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   createTask: async (taskData: { title: string; description: string; project_id: string; assigned_user_id?: string | null; due_date?: string | null }) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/tasks", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -897,7 +897,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   updateTaskStatus: async (taskId: string, status: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/tasks/${taskId}/status`, {
+      const res = await fetch(`/api/tasks/${taskId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -917,7 +917,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   assignTask: async (taskId: string, userId: string) => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/tasks/${taskId}/assign/${userId}`, {
+      const res = await fetch(`/api/tasks/${taskId}/assign/${userId}`, {
         method: "PUT",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -935,7 +935,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   groups: [],
   fetchGroups: async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/groups");
+      const res = await fetch("/api/groups");
       if (res.ok) {
         const data = await res.json();
         set({ groups: data });
@@ -946,7 +946,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   createGroup: async (groupData: { name: string; description?: string; project_id?: string | null }) => {
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/groups", {
+      const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(groupData)
@@ -963,7 +963,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   updateGroup: async (groupId: string, groupData: { name?: string; description?: string; project_id?: string | null }) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}`, {
+      const res = await fetch(`/api/groups/${groupId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(groupData)
@@ -979,7 +979,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   deleteGroup: async (groupId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}`, {
+      const res = await fetch(`/api/groups/${groupId}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -993,7 +993,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   fetchGroupMembers: async (groupId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members`);
+      const res = await fetch(`/api/groups/${groupId}/members`);
       if (res.ok) {
         return await res.json();
       }
@@ -1004,7 +1004,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   addUserToGroup: async (groupId: string, memberData: { user_id: string; role: string }) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members`, {
+      const res = await fetch(`/api/groups/${groupId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(memberData)
@@ -1017,7 +1017,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   removeUserFromGroup: async (groupId: string, userId: string) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members/${userId}`, {
+      const res = await fetch(`/api/groups/${groupId}/members/${userId}`, {
         method: "DELETE"
       });
       return res.ok;
@@ -1030,7 +1030,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchBeacons: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/events/beacons", {
+      const res = await fetch("/api/v1/events/beacons", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1045,7 +1045,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchMeetings: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8080/api/v1/events/meetings", {
+      const res = await fetch("/api/v1/events/meetings", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1062,8 +1062,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/events/reminders?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/events/reminders";
+        ? `/api/v1/events/reminders?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/events/reminders";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -1081,8 +1081,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/events/beacons/${beaconId}/reply?simulate_user_id=${simulatedUser.user_id}`
-        : `http://127.0.0.1:8080/api/v1/events/beacons/${beaconId}/reply`;
+        ? `/api/v1/events/beacons/${beaconId}/reply?simulate_user_id=${simulatedUser.user_id}`
+        : `/api/v1/events/beacons/${beaconId}/reply`;
       const res = await fetch(url, {
         method: "POST",
         headers: { 
@@ -1107,8 +1107,8 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const token = localStorage.getItem("seven_token");
       const simulatedUser = get().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/events/reminders/${reminderId}/reply?simulate_user_id=${simulatedUser.user_id}`
-        : `http://127.0.0.1:8080/api/v1/events/reminders/${reminderId}/reply`;
+        ? `/api/v1/events/reminders/${reminderId}/reply?simulate_user_id=${simulatedUser.user_id}`
+        : `/api/v1/events/reminders/${reminderId}/reply`;
       const res = await fetch(url, {
         method: "POST",
         headers: { 

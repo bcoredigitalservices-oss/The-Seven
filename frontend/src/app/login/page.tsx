@@ -106,7 +106,7 @@ export default function LoginPage() {
           ? { email, password }
           : { email, password, totp_code: totpCode };
 
-      const res = await fetch("http://127.0.0.1:8080/api/auth/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

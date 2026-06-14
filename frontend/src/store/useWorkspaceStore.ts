@@ -204,8 +204,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     isConnected: false,
     isDeepWorkMode: false,
     activeBlockerBeacon: null,
-    apiBaseUrl: "http://127.0.0.1:8080",
-    wsUrl: "ws://127.0.0.1:8080",
+    apiBaseUrl: "",
+    wsUrl: (typeof window !== 'undefined' ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host : ''),
     ws: null,
 
     login: async (userIdOrName: string) => {

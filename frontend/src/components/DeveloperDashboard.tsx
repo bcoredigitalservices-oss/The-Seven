@@ -116,7 +116,7 @@ export default function DeveloperDashboard() {
     setActiveTask(task);
     // Find channel for task
     try {
-      const response = await fetch(`http://127.0.0.1:8080/api/tasks/${task.task_id}/channel`);
+      const response = await fetch(`/api/tasks/${task.task_id}/channel`);
       if (response.ok) {
         const channel = await response.json();
         useWorkspaceStore.setState({ currentChannel: channel });
@@ -154,7 +154,7 @@ export default function DeveloperDashboard() {
     
     // 2. Automatically post explanation in the attached chat channel
     try {
-      const channelResponse = await fetch(`http://127.0.0.1:8080/api/tasks/${task.task_id}/channel`);
+      const channelResponse = await fetch(`/api/tasks/${task.task_id}/channel`);
       if (channelResponse.ok) {
         const channel = await channelResponse.json();
         await sendMessage(channel.channel_id, `🚨 **BLOCKER BEACON TRIGGERED** 🚨\n\n${explanation || "No details provided."}`, false);

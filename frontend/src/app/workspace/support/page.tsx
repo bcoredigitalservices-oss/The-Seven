@@ -25,8 +25,8 @@ export default function SupportPage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/support/requests?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/support/requests";
+        ? `/api/v1/support/requests?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/support/requests";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -61,8 +61,8 @@ export default function SupportPage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/support/requests?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/support/requests";
+        ? `/api/v1/support/requests?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/support/requests";
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -93,7 +93,7 @@ export default function SupportPage() {
 
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/support/requests/${requestId}/assign`, {
+      const res = await fetch(`/api/v1/support/requests/${requestId}/assign`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,8 +114,8 @@ export default function SupportPage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/support/requests/${requestId}/resolve?simulate_user_id=${simulatedUser.user_id}`
-        : `http://127.0.0.1:8080/api/v1/support/requests/${requestId}/resolve`;
+        ? `/api/v1/support/requests/${requestId}/resolve?simulate_user_id=${simulatedUser.user_id}`
+        : `/api/v1/support/requests/${requestId}/resolve`;
       const res = await fetch(url, {
         method: "POST",
         headers: {

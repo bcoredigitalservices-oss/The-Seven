@@ -17,11 +17,11 @@ export default function ProjectsPage() {
       setIsLoading(true);
       const token = localStorage.getItem("seven_token");
       const projUrl = simulatedUser 
-        ? `http://127.0.0.1:8080/api/projects?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/projects";
+        ? `/api/projects?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/projects";
       const groupUrl = simulatedUser 
-        ? `http://127.0.0.1:8080/api/groups?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/groups";
+        ? `/api/groups?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/groups";
 
       try {
         const [projRes, groupRes] = await Promise.all([

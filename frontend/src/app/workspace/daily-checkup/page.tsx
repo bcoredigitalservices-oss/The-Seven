@@ -24,8 +24,8 @@ export default function DailyLoggingPage() {
     try {
       const simulatedUser = useSevenStore.getState().simulatedUser;
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/worklogs";
+        ? `/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/worklogs";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });

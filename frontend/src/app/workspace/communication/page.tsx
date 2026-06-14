@@ -81,7 +81,7 @@ export default function CommunicationPage() {
   const fetchGroups = async () => {
     const token = localStorage.getItem("seven_token");
     try {
-      const res = await fetch("http://127.0.0.1:8080/api/groups", {
+      const res = await fetch("/api/groups", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -149,8 +149,8 @@ export default function CommunicationPage() {
       if (!selectedUser) return;
       try {
         const url = simulatedUser
-          ? `http://127.0.0.1:8080/api/v1/communication/dms?other_user_id=${selectedUser.user_id}&simulate_user_id=${simulatedUser.user_id}`
-          : `http://127.0.0.1:8080/api/v1/communication/dms?other_user_id=${selectedUser.user_id}`;
+          ? `/api/v1/communication/dms?other_user_id=${selectedUser.user_id}&simulate_user_id=${simulatedUser.user_id}`
+          : `/api/v1/communication/dms?other_user_id=${selectedUser.user_id}`;
         const res = await fetch(url, {
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -165,8 +165,8 @@ export default function CommunicationPage() {
       if (!selectedGroup) return;
       try {
         const url = simulatedUser
-          ? `http://127.0.0.1:8080/api/v1/communication/groups/${selectedGroup.group_id}/messages?simulate_user_id=${simulatedUser.user_id}`
-          : `http://127.0.0.1:8080/api/v1/communication/groups/${selectedGroup.group_id}/messages`;
+          ? `/api/v1/communication/groups/${selectedGroup.group_id}/messages?simulate_user_id=${simulatedUser.user_id}`
+          : `/api/v1/communication/groups/${selectedGroup.group_id}/messages`;
         const res = await fetch(url, {
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -207,8 +207,8 @@ export default function CommunicationPage() {
       if (activeTab === "dm") {
         if (!selectedUser) return;
         const url = simulatedUser
-          ? `http://127.0.0.1:8080/api/v1/communication/dms?simulate_user_id=${simulatedUser.user_id}`
-          : "http://127.0.0.1:8080/api/v1/communication/dms";
+          ? `/api/v1/communication/dms?simulate_user_id=${simulatedUser.user_id}`
+          : "/api/v1/communication/dms";
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -234,8 +234,8 @@ export default function CommunicationPage() {
       } else {
         if (!selectedGroup) return;
         const url = simulatedUser
-          ? `http://127.0.0.1:8080/api/v1/communication/groups/${selectedGroup.group_id}/messages?simulate_user_id=${simulatedUser.user_id}`
-          : `http://127.0.0.1:8080/api/v1/communication/groups/${selectedGroup.group_id}/messages`;
+          ? `/api/v1/communication/groups/${selectedGroup.group_id}/messages?simulate_user_id=${simulatedUser.user_id}`
+          : `/api/v1/communication/groups/${selectedGroup.group_id}/messages`;
         const res = await fetch(url, {
           method: "POST",
           headers: {

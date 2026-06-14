@@ -85,7 +85,7 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
     const token = localStorage.getItem("seven_token");
     const groupId = selectedProject.assigned_group_id;
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/communication/groups/${groupId}/messages`, {
+      const res = await fetch(`/api/v1/communication/groups/${groupId}/messages`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -129,7 +129,7 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
     const encrypted = encryptMessage(chatInput, secretKey);
 
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/communication/groups/${groupId}/messages`, {
+      const res = await fetch(`/api/v1/communication/groups/${groupId}/messages`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

@@ -106,7 +106,7 @@ export default function AdminDashboard() {
   const handleSelectTask = async (task: Task) => {
     setActiveTask(task);
     try {
-      const response = await fetch(`http://127.0.0.1:8080/api/tasks/${task.task_id}/channel`);
+      const response = await fetch(`/api/tasks/${task.task_id}/channel`);
       if (response.ok) {
         const channel = await response.json();
         useWorkspaceStore.setState({ currentChannel: channel });

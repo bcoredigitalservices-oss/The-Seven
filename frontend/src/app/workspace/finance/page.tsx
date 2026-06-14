@@ -24,8 +24,8 @@ export default function FinancePage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/finance/logs?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/finance/logs";
+        ? `/api/v1/finance/logs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/finance/logs";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -61,8 +61,8 @@ export default function FinancePage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser 
-        ? `http://127.0.0.1:8080/api/v1/finance/logs?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/finance/logs";
+        ? `/api/v1/finance/logs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/finance/logs";
       const res = await fetch(url, {
         method: "POST",
         headers: {

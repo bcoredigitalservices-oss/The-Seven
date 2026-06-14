@@ -36,7 +36,7 @@ export default function ContextChat({ channelId }: { channelId: string }) {
   const fetchMessages = async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8080/api/channels/${channelId}/messages`, {
+      const res = await fetch(`/api/channels/${channelId}/messages`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -69,7 +69,7 @@ export default function ContextChat({ channelId }: { channelId: string }) {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      await fetch(`http://127.0.0.1:8080/api/messages?sender_id=${userProfile.user_id}`, {
+      await fetch(`/api/messages?sender_id=${userProfile.user_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({

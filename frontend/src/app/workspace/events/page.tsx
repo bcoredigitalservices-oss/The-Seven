@@ -126,33 +126,33 @@ export default function EventsPage() {
       // Fetch users, beacons, meetings, reminders
       fetchAllUsers();
       
-      const beaconsRes = await fetch(`http://127.0.0.1:8080/api/v1/events/beacons${simulateParam}`, { headers });
+      const beaconsRes = await fetch(`/api/v1/events/beacons${simulateParam}`, { headers });
       if (beaconsRes.ok) {
         const data = await beaconsRes.json();
         setBeacons(data);
       }
       
-      const meetingsRes = await fetch(`http://127.0.0.1:8080/api/v1/events/meetings${simulateParam}`, { headers });
+      const meetingsRes = await fetch(`/api/v1/events/meetings${simulateParam}`, { headers });
       if (meetingsRes.ok) {
         const data = await meetingsRes.json();
         setMeetings(data);
       }
       
-      const remindersRes = await fetch(`http://127.0.0.1:8080/api/v1/events/reminders${simulateParam}`, { headers });
+      const remindersRes = await fetch(`/api/v1/events/reminders${simulateParam}`, { headers });
       if (remindersRes.ok) {
         const data = await remindersRes.json();
         setReminders(data);
       }
 
       // Fetch projects
-      const projectsRes = await fetch(`http://127.0.0.1:8080/api/projects${simulateParam}`, { headers });
+      const projectsRes = await fetch(`/api/projects${simulateParam}`, { headers });
       if (projectsRes.ok) {
         const data = await projectsRes.json();
         setProjects(data);
       }
 
       // Fetch groups
-      const groupsRes = await fetch(`http://127.0.0.1:8080/api/groups${simulateParam}`, { headers });
+      const groupsRes = await fetch(`/api/groups${simulateParam}`, { headers });
       if (groupsRes.ok) {
         const data = await groupsRes.json();
         setGroups(data);
@@ -242,7 +242,7 @@ export default function EventsPage() {
     const token = localStorage.getItem("seven_token");
     const simulateParam = simulatedUser ? `?simulate_user_id=${simulatedUser.user_id}` : "";
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/events/beacons${simulateParam}`, {
+      const res = await fetch(`/api/v1/events/beacons${simulateParam}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -274,7 +274,7 @@ export default function EventsPage() {
     const token = localStorage.getItem("seven_token");
     const simulateParam = simulatedUser ? `?simulate_user_id=${simulatedUser.user_id}` : "";
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/events/meetings${simulateParam}`, {
+      const res = await fetch(`/api/v1/events/meetings${simulateParam}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -314,7 +314,7 @@ export default function EventsPage() {
     const token = localStorage.getItem("seven_token");
     const simulateParam = simulatedUser ? `?simulate_user_id=${simulatedUser.user_id}` : "";
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/events/reminders${simulateParam}`, {
+      const res = await fetch(`/api/v1/events/reminders${simulateParam}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -345,7 +345,7 @@ export default function EventsPage() {
     const token = localStorage.getItem("seven_token");
     const simulateParam = simulatedUser ? `?simulate_user_id=${simulatedUser.user_id}` : "";
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/events/beacons/${beaconId}/reply${simulateParam}`, {
+      const res = await fetch(`/api/v1/events/beacons/${beaconId}/reply${simulateParam}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -370,7 +370,7 @@ export default function EventsPage() {
     const token = localStorage.getItem("seven_token");
     const simulateParam = simulatedUser ? `?simulate_user_id=${simulatedUser.user_id}` : "";
     try {
-      const res = await fetch(`http://127.0.0.1:8080/api/v1/events/reminders/${reminderId}/reply${simulateParam}`, {
+      const res = await fetch(`/api/v1/events/reminders/${reminderId}/reply${simulateParam}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

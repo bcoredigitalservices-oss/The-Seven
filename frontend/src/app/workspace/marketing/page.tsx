@@ -25,8 +25,8 @@ export default function MarketingPage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser
-        ? `http://127.0.0.1:8080/api/v1/marketing/surveys?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/marketing/surveys";
+        ? `/api/v1/marketing/surveys?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/marketing/surveys";
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -72,8 +72,8 @@ export default function MarketingPage() {
     try {
       const token = localStorage.getItem("seven_token");
       const url = simulatedUser
-        ? `http://127.0.0.1:8080/api/v1/marketing/surveys?simulate_user_id=${simulatedUser.user_id}`
-        : "http://127.0.0.1:8080/api/v1/marketing/surveys";
+        ? `/api/v1/marketing/surveys?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/marketing/surveys";
       const res = await fetch(url, {
         method: "POST",
         headers: {
