@@ -26,37 +26,64 @@ export default function PersonasPage() {
   }
 
   const handleSimulateRole = (roleId: string) => {
+    // Match against both department (display name) and department_id (slug)
+    const deptMatch = (u: any, ...keywords: string[]) => {
+      const dept = (u.department || "").toLowerCase();
+      const deptId = (u.department_id || "").toLowerCase();
+      return keywords.some(k => dept.includes(k) || deptId.includes(k));
+    };
+
     let targetUser = null;
-    if (roleId === "it") {
-      targetUser = allUsers.find(u => u.email === "test.dev1@seven.com");
-    } else if (roleId === "creative") {
-      targetUser = allUsers.find(u => u.email === "test.dev2@seven.com");
-    } else if (roleId === "corporate") {
-      targetUser = allUsers.find(u => u.email === "test.hr@seven.com");
-    } else if (roleId === "marketing") {
-      targetUser = allUsers.find(u => u.email === "test.marketer@seven.com");
-    } else if (roleId === "client") {
-      targetUser = allUsers.find(u => u.email === "test.client@client.com");
+
+    // Priority 1: seed emails (for local/dev environments)
+    const seedEmails: Record<string, string> = {
+      it: "test.dev1@seven.com",
+      creative: "test.dev2@seven.com",
+      corporate: "test.hr@seven.com",
+      marketing: "test.marketer@seven.com",
+      client: "test.client@client.com",
+    };
+    if (seedEmails[roleId]) {
+      targetUser = allUsers.find(u => u.email === seedEmails[roleId]) || null;
+    }
+
+    // Priority 2: match by user_type or department fields (production)
+    if (!targetUser) {
+      if (roleId === "client") {
+        targetUser = allUsers.find(u => u.user_type === "Client") || null;
+      } else if (roleId === "it") {
+        targetUser = allUsers.find(u =>
+          u.role_tier !== 1 && u.user_type !== "Client" &&
+          deptMatch(u, "dev", "tech", "saas", "it", "it_saas", "engineering")
+        ) || null;
+      } else if (roleId === "creative") {
+        targetUser = allUsers.find(u =>
+          u.role_tier !== 1 && u.user_type !== "Client" &&
+          deptMatch(u, "creative", "design", "brand", "studio")
+        ) || null;
+      } else if (roleId === "corporate") {
+        targetUser = allUsers.find(u =>
+          u.role_tier !== 1 && u.user_type !== "Client" &&
+          deptMatch(u, "corporate", "hr", "crm", "sales", "account")
+        ) || null;
+      } else if (roleId === "marketing") {
+        targetUser = allUsers.find(u =>
+          u.role_tier !== 1 && u.user_type !== "Client" &&
+          deptMatch(u, "marketing", "promo", "agency", "ads", "ads_agency")
+        ) || null;
+      }
+    }
+
+    // Priority 3: pick any non-CEO non-client employee as last resort
+    if (!targetUser && roleId !== "client") {
+      targetUser = allUsers.find(u => u.role_tier !== 1 && u.user_type !== "Client") || null;
     }
 
     if (targetUser) {
       setSimulatedUser(targetUser);
       router.push("/workspace");
     } else {
-      // Fallback: If seed users are not found, simulate using generic fields
-      const fallbackUser = allUsers.find(u => {
-        const dept = (u.department || "").toLowerCase();
-        if (roleId === "it") return dept.includes("dev") || dept.includes("tech") || dept.includes("saas");
-        if (roleId === "creative") return dept.includes("creative") || dept.includes("design");
-        if (roleId === "corporate") return dept.includes("corporate") || dept.includes("hr") || dept.includes("sales");
-        if (roleId === "marketing") return dept.includes("marketing") || dept.includes("promo") || dept.includes("agency");
-        if (roleId === "client") return u.user_type === "Client";
-        return false;
-      });
-      if (fallbackUser) {
-        setSimulatedUser(fallbackUser);
-        router.push("/workspace");
-      }
+      alert(`No suitable user found to simulate the "${roleId}" role. Please provision a user for that department first.`);
     }
   };
 

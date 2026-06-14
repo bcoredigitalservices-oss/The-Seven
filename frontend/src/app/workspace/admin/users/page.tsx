@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useSevenStore, UserProfile } from "@/store/useSevenStore";
-import { ShieldAlert, UserPlus, Check, X, Minus } from "lucide-react";
+import { ShieldAlert, UserPlus, Check, X, Minus, MailCheck, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AdminUsersPortal() {
-  const { allUsers, capabilities, fetchAllUsers, fetchCapabilities, userProfile } = useSevenStore();
+  const { allUsers, capabilities, fetchAllUsers, fetchCapabilities, userProfile, resendInvite } = useSevenStore();
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userCaps, setUserCaps] = useState<any[]>([]);
   const [loadingCaps, setLoadingCaps] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{ userId: string; state: "loading" | "success" | "error"; msg?: string } | null>(null);
 
   // New User Form State
   const [showNewUser, setShowNewUser] = useState(false);
@@ -217,7 +218,38 @@ export default function AdminUsersPortal() {
                   <h3 className="text-zinc-200 font-mono font-bold">{selectedUser.full_name} // OVERRIDES</h3>
                   <p className="text-[10px] text-zinc-500 font-mono mt-1">{selectedUser.email}</p>
                 </div>
+                <button
+                  onClick={async () => {
+                    setResendStatus({ userId: selectedUser.user_id, state: "loading" });
+                    const result = await resendInvite(selectedUser.user_id);
+                    setResendStatus({
+                      userId: selectedUser.user_id,
+                      state: result.success ? "success" : "error",
+                      msg: result.success ? result.message : result.error,
+                    });
+                    setTimeout(() => setResendStatus(null), 5000);
+                  }}
+                  disabled={resendStatus?.userId === selectedUser.user_id && resendStatus?.state === "loading"}
+                  className="flex items-center space-x-2 text-[10px] font-mono px-3 py-1.5 rounded border transition-all
+                    bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resendStatus?.userId === selectedUser.user_id && resendStatus?.state === "loading" ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <MailCheck className="w-3 h-3" />
+                  )}
+                  <span>RESEND INVITE</span>
+                </button>
               </div>
+              {resendStatus?.userId === selectedUser.user_id && resendStatus.state !== "loading" && (
+                <div className={`px-4 py-2 text-[10px] font-mono border-b ${
+                  resendStatus.state === "success"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : "bg-[#ff1744]/10 border-[#ff1744]/30 text-[#ff1744]"
+                }`}>
+                  {resendStatus.state === "success" ? "✓" : "✗"} {resendStatus.msg}
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto p-6 space-y-8">
                 {/* Group by category if we wanted, but we will just list all capabilities for now */}
                 <div>

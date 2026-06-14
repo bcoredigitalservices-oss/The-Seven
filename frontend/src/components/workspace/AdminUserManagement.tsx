@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useSevenStore, UserProfile } from "@/store/useSevenStore";
-import { Users, Shield, Edit2, X, Check, Search, Terminal, Plus, UserX, UserCheck, Trash2, Lock, Briefcase, Key } from "lucide-react";
+import { Users, Shield, Edit2, X, Check, Search, Terminal, Plus, UserX, UserCheck, Trash2, Lock, Briefcase, Key, Crown } from "lucide-react";
 
 const DEPARTMENT_STRUCTURE = {
   IT_SAAS: {
@@ -545,59 +545,92 @@ export default function AdminUserManagement() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] text-zinc-500 uppercase tracking-widest">User Type</label>
-                        <select value={formData.user_type || "Employee"} onChange={(e) => handleChange("user_type", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                        <select
+                          value={formData.user_type || "Employee"}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleChange("user_type", val);
+                            if (val === "CEO") {
+                              setFormData((prev: any) => ({
+                                ...prev,
+                                user_type: "CEO",
+                                department: null,
+                                sub_department: null,
+                                functional_role: null,
+                                specialization: null,
+                                seniority_level: null,
+                              }));
+                            }
+                          }}
+                          className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]"
+                        >
                           <option value="CEO">CEO</option>
                           <option value="Department Lead">Department Lead</option>
                           <option value="Employee">Employee</option>
                         </select>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Department</label>
-                        <select value={formData.department || "IT_SAAS"} onChange={(e) => handleDepartmentChange(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
-                          {MOCK_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                      </div>
                     </div>
+                    {/* Department + Sub-Department + Role + Seniority + Specialization — locked for CEO */}
+                    {formData.user_type === "CEO" ? (
+                      <div className="col-span-2 flex items-center space-x-3 bg-zinc-900/60 border border-zinc-700/50 rounded-lg px-4 py-3">
+                        <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Global Executive — No Department Assignment</p>
+                          <p className="text-[9px] text-zinc-500 mt-0.5">Department, Sub-Department, Functional Role, Seniority Level, and Specialization are not applicable for the CEO role.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Department</label>
+                            <select value={formData.department || "IT_SAAS"} onChange={(e) => handleDepartmentChange(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                              {MOCK_DEPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Sub-Department</label>
+                            <select value={formData.sub_department || ""} onChange={(e) => handleSubDepartmentChange(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                              {availableSubDepts.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Sub-Department</label>
-                        <select value={formData.sub_department || ""} onChange={(e) => handleSubDepartmentChange(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
-                          {availableSubDepts.map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Functional Role</label>
-                        <select value={formData.functional_role || ""} onChange={(e) => handleChange("functional_role", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
-                          {availableRoles.map(role => (
-                            <option key={role} value={role}>{role}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Functional Role</label>
+                            <select value={formData.functional_role || ""} onChange={(e) => handleChange("functional_role", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                              {availableRoles.map(role => (
+                                <option key={role} value={role}>{role}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Seniority Level</label>
+                            <select value={formData.seniority_level || "Mid-Level"} onChange={(e) => handleChange("seniority_level", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                              <option value="Junior">Junior</option>
+                              <option value="Mid-Level">Mid-Level</option>
+                              <option value="Senior">Senior</option>
+                              <option value="Lead">Lead</option>
+                              <option value="Principal">Principal</option>
+                            </select>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Seniority Level</label>
-                        <select value={formData.seniority_level || "Mid-Level"} onChange={(e) => handleChange("seniority_level", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
-                          <option value="Junior">Junior</option>
-                          <option value="Mid-Level">Mid-Level</option>
-                          <option value="Senior">Senior</option>
-                          <option value="Lead">Lead</option>
-                          <option value="Principal">Principal</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Specialization</label>
-                        <select value={formData.specialization || ""} onChange={(e) => handleChange("specialization", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
-                          {availableSpecs.map(spec => (
-                            <option key={spec} value={spec}>{spec}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Specialization</label>
+                            <select value={formData.specialization || ""} onChange={(e) => handleChange("specialization", e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]">
+                              {availableSpecs.map(spec => (
+                                <option key={spec} value={spec}>{spec}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               )}

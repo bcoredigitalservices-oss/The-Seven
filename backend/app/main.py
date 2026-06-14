@@ -266,6 +266,33 @@ def create_admin_user(
     
     return new_user
 
+@app.post("/api/admin/users/{user_id}/resend-invite")
+def resend_invite(
+    user_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role_tier != 1:
+        raise HTTPException(status_code=403, detail="Only Tier 1 Executive Admins can resend invitations")
+
+    target_user = crud.get_user(db, user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from app.auth import SECRET_KEY, ALGORITHM
+    from datetime import datetime, timedelta
+
+    expire = datetime.utcnow() + timedelta(hours=48)
+    invite_token = jwt.encode(
+        {"sub": "invite", "email": target_user.email, "exp": expire},
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    background_tasks.add_task(send_invitation_email, target_user.email, invite_token, target_user.user_type)
+    return {"status": "success", "message": f"Invitation email re-sent to {target_user.email}"}
+
 @app.post("/api/auth/login")
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, login_data.email)

@@ -178,6 +178,7 @@ interface SevenStore {
   adminUsers: UserProfile[];
   fetchAdminUsers: () => Promise<void>;
   updateUserMetadata: (userId: string, updateData: any) => Promise<boolean>;
+  resendInvite: (userId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   projects: Project[];
   fetchProjects: () => Promise<void>;
   createProject: (projectData: { 
@@ -777,6 +778,25 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       console.error("Failed to update user metadata", e);
     }
     return false;
+  },
+  resendInvite: async (userId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`/api/admin/users/${userId}/resend-invite`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: data.message };
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.detail || "Failed to resend invite" };
+      }
+    } catch (e: any) {
+      console.error("Failed to resend invite", e);
+      return { success: false, error: e.message || "Network error" };
+    }
   },
   projects: [],
   fetchProjects: async () => {
