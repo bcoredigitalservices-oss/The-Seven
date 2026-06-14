@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/seven.db
+      - FRONTEND_URL=https://seven.bcore.digital
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=your-email@gmail.com
+      - SMTP_PASSWORD=your-app-password
+      - RESEND_API_KEY=your_resend_api_key
+    volumes:
+      - backend_data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://seven.bcore.digital/api
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  backend_data:
