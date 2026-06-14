@@ -14,7 +14,7 @@ from app.database import engine, get_db
 from app.rate_limiter import rate_limit
 
 # Configure Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
@@ -143,7 +143,6 @@ class ConnectionManager:
         await websocket.send_json(message)
 
     async def broadcast(self, message: dict):
-        logger.info(f"Broadcasting message: {message.get('type')}")
         for user_id, websockets in list(self.active_connections.items()):
             for websocket in websockets:
                 try:
@@ -172,7 +171,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, db: Session = D
             # Client can send client status updates, ping, or chat typing.
             data = await websocket.receive_text()
             payload = json.loads(data)
-            logger.info(f"Received WS payload from {user_id}: {payload}")
             
             # Echo or process custom payload
             # If client wants to send a fast status update:
