@@ -71,6 +71,7 @@ def create_admin():
         hashed_password=hashed_pw,
         totp_secret=totp_secret,
         role_tier=1,
+        user_type="CEO",
         department_id="EXEC",
         current_status="Active"
     )

@@ -276,7 +276,7 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Incorrect password")
         
     # Conditional TOTP enforcement based on SEVEN architectural rules
-    if user.user_type == 'CEO' and user.totp_secret:
+    if (user.user_type == 'CEO' or user.role_tier == 1) and user.totp_secret:
         if not login_data.totp_code:
             raise HTTPException(status_code=401, detail="TOTP_REQUIRED")
         if not verify_totp(user.totp_secret, login_data.totp_code):
