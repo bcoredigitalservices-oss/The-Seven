@@ -1,0 +1,417 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useSevenStore, Task } from "@/store/useSevenStore";
+import { CheckSquare, Clock, AlertOctagon, Calendar, Bell, Send, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import WorkLogger from "./WorkLogger";
+
+interface EmployeeTasksViewProps {
+  assignedTasks: Task[];
+}
+
+export function EmployeeTasksView({ assignedTasks }: EmployeeTasksViewProps) {
+  const [selectedTask, setSelectedTask] = useState<Task | null>(
+    assignedTasks.length > 0 ? assignedTasks[0] : null
+  );
+
+  useEffect(() => {
+    if (assignedTasks.length > 0 && (!selectedTask || !assignedTasks.some(t => t.task_id === selectedTask.task_id))) {
+      setSelectedTask(assignedTasks[0]);
+    }
+  }, [assignedTasks, selectedTask]);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Task List */}
+      <div className="lg:col-span-2 bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+          <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+            <CheckSquare className="w-4 h-4 text-[#00E5FF]" />
+            <span>MY ASSIGNED TASKS</span>
+          </h3>
+          <span className="text-[10px] font-mono text-zinc-550">SELECT TO LOG WORK SESSION</span>
+        </div>
+
+        <div className="space-y-2.5 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
+          {assignedTasks.length === 0 ? (
+            <div className="text-center py-16 text-xs font-mono text-zinc-650">
+              No tasks currently assigned to your node.
+            </div>
+          ) : (
+            assignedTasks.map((task) => {
+              const isSelected = selectedTask?.task_id === task.task_id;
+              return (
+                <button
+                  key={task.task_id}
+                  onClick={() => setSelectedTask(task)}
+                  className={`w-full text-left p-4 rounded-xl border font-mono transition-all flex items-start justify-between ${
+                    isSelected
+                      ? "bg-[#141414] border-[#00E5FF]/30 text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.05)]"
+                      : "bg-zinc-950/40 border-zinc-900 text-zinc-400 hover:bg-[#111] hover:text-white"
+                  }`}
+                >
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex items-center space-x-2.5">
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          task.status === "Done" || task.status === "Deployed"
+                            ? "bg-emerald-400"
+                            : task.status === "In Progress"
+                            ? "bg-[#00E5FF]"
+                            : task.status === "Blocked"
+                            ? "bg-red-500 animate-pulse"
+                            : "bg-zinc-650"
+                        }`}
+                      />
+                      <span className="text-xs font-bold text-white truncate">{task.title}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed truncate max-w-xl">
+                      {task.description || "No specific details logged."}
+                    </p>
+                    {task.due_date && (
+                      <span className="text-[9px] text-zinc-600 block mt-1 uppercase">
+                        DEADLINE: {new Date(task.due_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end space-y-1 ml-4 shrink-0">
+                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 tracking-wider">
+                      {task.status}
+                    </span>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Task Logger Side Control */}
+      <div className="lg:col-span-1 bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4 justify-between h-full min-h-[250px]">
+        <div>
+          <div className="border-b border-zinc-850 pb-3 mb-4">
+            <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+              <Clock className="w-4 h-4 text-[#00E5FF]" />
+              <span>TIME REGISTRATION</span>
+            </h3>
+          </div>
+
+          {selectedTask ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-2.5">
+                <span className="text-[9px] font-mono text-zinc-550 uppercase tracking-widest block">Active Target:</span>
+                <h4 className="text-xs font-bold text-white font-mono leading-snug">{selectedTask.title}</h4>
+                <p className="text-[10px] font-mono text-zinc-500 max-h-32 overflow-y-auto leading-relaxed custom-scrollbar">
+                  {selectedTask.description || "No specs provided for this deployment node."}
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <p className="text-[9px] font-mono text-zinc-550 uppercase mb-2">Record session progress hours:</p>
+                <WorkLogger taskId={selectedTask.task_id} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center text-center py-16 text-xs font-mono text-zinc-650">
+              Select a task from the backlog on the left to register time.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function EmployeeNotificationsView() {
+  const {
+    beacons,
+    meetings,
+    reminders,
+    fetchBeacons,
+    fetchMeetings,
+    fetchReminders,
+    replyBeacon,
+    replyReminder,
+    userProfile,
+    simulatedUser
+  } = useSevenStore();
+
+  const activeUser = simulatedUser || userProfile;
+
+  const [beaconReplies, setBeaconReplies] = useState<Record<string, string>>({});
+  const [reminderReplies, setReminderReplies] = useState<Record<string, string>>({});
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchBeacons();
+    fetchMeetings();
+    fetchReminders();
+  }, [fetchBeacons, fetchMeetings, fetchReminders, activeUser]);
+
+  // Filters
+  const userBeacons = beacons.filter((b) => {
+    if (b.target_type === "all") return true;
+    if (b.target_type === "user" && b.target_id === activeUser?.user_id) return true;
+    return false;
+  });
+
+  const userMeetings = meetings.filter((m) => {
+    if (m.target_type === "all") return true;
+    if (m.target_id === activeUser?.user_id) return true;
+    return false;
+  });
+
+  const userReminders = reminders.filter((r) => r.target_id === activeUser?.user_id);
+
+  const handleBeaconReply = async (beaconId: string) => {
+    const text = beaconReplies[beaconId]?.trim();
+    if (!text) return;
+    setReplyingId(beaconId);
+    const ok = await replyBeacon(beaconId, text);
+    setReplyingId(null);
+    if (ok) {
+      setBeaconReplies(prev => ({ ...prev, [beaconId]: "" }));
+    }
+  };
+
+  const handleReminderReply = async (reminderId: string) => {
+    const text = reminderReplies[reminderId]?.trim();
+    if (!text) return;
+    setReplyingId(reminderId);
+    const ok = await replyReminder(reminderId, text);
+    setReplyingId(null);
+    if (ok) {
+      setReminderReplies(prev => ({ ...prev, [reminderId]: "" }));
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      
+      {/* Left Column: Beacons & Reminders */}
+      <div className="space-y-6">
+        
+        {/* Blocker Beacons Section */}
+        <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+            <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+              <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" />
+              <span>ACTIVE BLOCKER BEACONS (40-MIN RESOLUTION DEADLINE)</span>
+            </h3>
+            <span className="text-[10px] font-mono text-zinc-550">REQUIRES IMMEDIATE REPLY</span>
+          </div>
+
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            {userBeacons.length === 0 ? (
+              <div className="text-center py-10 text-xs font-mono text-zinc-650">
+                No active blocker beacons targeting your node.
+              </div>
+            ) : (
+              userBeacons.map((beacon) => (
+                <div key={beacon.beacon_id} className="p-4 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-3 font-mono text-xs">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                        <span className="font-bold text-white">BEACON BY {beacon.sender_name}</span>
+                      </div>
+                      <p className="text-zinc-350 leading-relaxed">{beacon.message}</p>
+                    </div>
+                    <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded border font-bold ${
+                      beacon.is_resolved 
+                        ? "bg-emerald-950/20 border-emerald-900/40 text-emerald-400" 
+                        : "bg-red-950/20 border-red-900/40 text-red-400 animate-pulse"
+                    }`}>
+                      {beacon.is_resolved ? "RESOLVED" : "ACTIVE"}
+                    </span>
+                  </div>
+
+                  {/* Deadline Info */}
+                  <div className="text-[10px] text-zinc-500 flex items-center justify-between">
+                    <span>CREATED: {new Date(beacon.created_at).toLocaleTimeString()}</span>
+                    {!beacon.is_resolved && (
+                      <span className="text-red-400 font-bold">DEADLINE: {new Date(beacon.deadline).toLocaleTimeString()}</span>
+                    )}
+                  </div>
+
+                  {/* Reply Log */}
+                  {beacon.responses && beacon.responses.length > 0 && (
+                    <div className="bg-[#0b0b0b] border border-zinc-900 rounded-lg p-2.5 space-y-2 mt-2">
+                      <p className="text-[9px] text-zinc-550 uppercase tracking-wider font-bold">Replies history:</p>
+                      {beacon.responses.map((resp: any, i: number) => (
+                        <div key={i} className="text-[11px] text-zinc-400 leading-snug">
+                          <span className="text-[#00E5FF] font-bold">{resp.user_name}:</span> {resp.reply}
+                          <span className="text-[9px] text-zinc-600 block mt-0.5">{new Date(resp.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reply Form */}
+                  {!beacon.is_resolved && (
+                    <div className="flex items-center space-x-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="ENTER BRIEF RESOLUTION REPLY..."
+                        value={beaconReplies[beacon.beacon_id] || ""}
+                        onChange={(e) => setBeaconReplies({ ...beaconReplies, [beacon.beacon_id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleBeaconReply(beacon.beacon_id);
+                        }}
+                        className="flex-1 bg-black border border-zinc-850 rounded px-2.5 py-1 text-white text-[11px] outline-none focus:border-red-500/40"
+                      />
+                      <button
+                        onClick={() => handleBeaconReply(beacon.beacon_id)}
+                        disabled={replyingId === beacon.beacon_id || !beaconReplies[beacon.beacon_id]}
+                        className="bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 text-red-400 px-3 py-1 rounded transition-colors text-[10px] font-bold flex items-center space-x-1"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>REPLY</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Reminders Section */}
+        <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+            <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+              <Bell className="w-4 h-4 text-amber-500" />
+              <span>PERSONAL REMINDER NOTIFICATIONS (6-HR VALIDATION)</span>
+            </h3>
+            <span className="text-[10px] font-mono text-zinc-550">REQUIRES ACKNOWLEDGEMENT</span>
+          </div>
+
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            {userReminders.length === 0 ? (
+              <div className="text-center py-10 text-xs font-mono text-zinc-650">
+                No reminders currently logged to your node.
+              </div>
+            ) : (
+              userReminders.map((reminder) => (
+                <div key={reminder.reminder_id} className="p-4 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-3 font-mono text-xs">
+                  <div className="flex justify-between items-start">
+                    <p className="text-zinc-350 leading-relaxed pr-4">{reminder.message}</p>
+                    <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded border font-bold ${
+                      reminder.is_replied 
+                        ? "bg-emerald-950/20 border-emerald-900/40 text-emerald-400" 
+                        : "bg-amber-950/20 border-amber-900/40 text-amber-400"
+                    }`}>
+                      {reminder.is_replied ? "ACKNOWLEDGED" : "PENDING"}
+                    </span>
+                  </div>
+
+                  <div className="text-[10px] text-zinc-500 flex items-center justify-between">
+                    <span>SENT: {new Date(reminder.created_at).toLocaleString()}</span>
+                    {!reminder.is_replied && (
+                      <span className="text-amber-400 font-bold">DUE BY: {new Date(reminder.deadline).toLocaleTimeString()}</span>
+                    )}
+                  </div>
+
+                  {reminder.is_replied && (
+                    <div className="bg-[#0b0b0b] border border-zinc-900 rounded-lg p-2 mt-1 flex items-start space-x-1.5 text-[11px] text-zinc-450">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-emerald-400 font-bold uppercase text-[9px] block">ACKNOWLEDGED WITH NOTE:</span>
+                        {reminder.reply_content}
+                      </div>
+                    </div>
+                  )}
+
+                  {!reminder.is_replied && (
+                    <div className="flex items-center space-x-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="ENTER CONFIRMATION NOTE..."
+                        value={reminderReplies[reminder.reminder_id] || ""}
+                        onChange={(e) => setReminderReplies({ ...reminderReplies, [reminder.reminder_id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleReminderReply(reminder.reminder_id);
+                        }}
+                        className="flex-1 bg-black border border-zinc-850 rounded px-2.5 py-1 text-white text-[11px] outline-none focus:border-amber-500/40"
+                      />
+                      <button
+                        onClick={() => handleReminderReply(reminder.reminder_id)}
+                        disabled={replyingId === reminder.reminder_id || !reminderReplies[reminder.reminder_id]}
+                        className="bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20 text-amber-400 px-3 py-1 rounded transition-colors text-[10px] font-bold flex items-center space-x-1"
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>ACKNOWLEDGE</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Right Column: Meetings / Schedules */}
+      <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+          <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-[#00E5FF]" />
+            <span>MEETING SCHEDULES & APPOINTMENTS</span>
+          </h3>
+          <span className="text-[10px] font-mono text-zinc-550">UPCOMING SESSIONS</span>
+        </div>
+
+        <div className="space-y-4 max-h-[660px] overflow-y-auto pr-1 custom-scrollbar">
+          {userMeetings.length === 0 ? (
+            <div className="text-center py-16 text-xs font-mono text-zinc-650">
+              No meetings scheduled for your node.
+            </div>
+          ) : (
+            userMeetings.map((meeting) => (
+              <div key={meeting.meeting_id} className="p-4 bg-zinc-950/60 border border-zinc-900 rounded-xl space-y-3 font-mono text-xs">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-white font-extrabold text-sm leading-snug">{meeting.title}</h4>
+                    <p className="text-[10px] text-zinc-500 mt-1 uppercase">
+                      ORGANIZER: {meeting.creator_name}
+                    </p>
+                  </div>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-850 text-cyan-400 font-bold tracking-wider">
+                    CONFIRMED
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-[#0a0a0a] p-2.5 rounded-lg border border-zinc-900 text-[11px] text-zinc-400">
+                  <div>
+                    <span className="text-zinc-550 block text-[9px] uppercase tracking-wider font-bold">DAY:</span>
+                    {meeting.day}
+                  </div>
+                  <div>
+                    <span className="text-zinc-550 block text-[9px] uppercase tracking-wider font-bold">TIME:</span>
+                    {meeting.time}
+                  </div>
+                </div>
+
+                {meeting.link && (
+                  <div className="pt-1 flex justify-end">
+                    <a
+                      href={meeting.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#00E5FF]/10 border border-[#00E5FF]/20 hover:bg-[#00E5FF]/20 hover:border-[#00E5FF]/40 text-[#00E5FF] px-4 py-1.5 rounded-lg transition-colors text-[10px] font-bold flex items-center space-x-1.5"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>LAUNCH SECURED CONFERENCE</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}

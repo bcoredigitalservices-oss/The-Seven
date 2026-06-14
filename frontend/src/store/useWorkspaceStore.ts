@@ -11,6 +11,7 @@ export interface Project {
   project_id: string;
   title: string;
   status: string;
+  client_id?: string | null;
 }
 
 export interface Task {
@@ -203,8 +204,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     isConnected: false,
     isDeepWorkMode: false,
     activeBlockerBeacon: null,
-    apiBaseUrl: "http://127.0.0.1:8000",
-    wsUrl: "ws://127.0.0.1:8000",
+    apiBaseUrl: "http://127.0.0.1:8080",
+    wsUrl: "ws://127.0.0.1:8080",
     ws: null,
 
     login: async (userIdOrName: string) => {

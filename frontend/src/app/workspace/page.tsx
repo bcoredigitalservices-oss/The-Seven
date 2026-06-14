@@ -1,162 +1,145 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSevenStore } from "@/store/useSevenStore";
 import Tier1ExecutiveView from "@/components/workspace/Tier1ExecutiveView";
-import Tier2DirectionalView from "@/components/workspace/Tier2DirectionalView";
-import Tier3LeadershipView from "@/components/workspace/Tier3LeadershipView";
-import Tier4ExecutionView from "@/components/workspace/Tier4ExecutionView";
+import ClientPortalView from "@/components/workspace/ClientPortalView";
+import ITDashboardView from "@/components/workspace/ITDashboardView";
+import CreativeDashboardView from "@/components/workspace/CreativeDashboardView";
+import CorporateDashboardView from "@/components/workspace/CorporateDashboardView";
+import MarketingDashboardView from "@/components/workspace/MarketingDashboardView";
 import { ShieldAlert } from "lucide-react";
 
 export default function WorkspacePage() {
-  const { userProfile, error } = useSevenStore();
+  const { userProfile, simulatedUser, error, dashboardData, fetchDashboardOverview } = useSevenStore();
+  const [personaMode, setPersonaMode] = useState<string>("executive");
+
+  const activeUser = simulatedUser || userProfile;
+
+  useEffect(() => {
+    if (activeUser) {
+      fetchDashboardOverview();
+    }
+  }, [activeUser, fetchDashboardOverview]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
         <ShieldAlert className="w-12 h-12 text-[#ff1744] mb-4" />
         <h2 className="text-xl font-mono text-zinc-200">WORKSPACE LINK FAILED</h2>
-        <p className="text-zinc-500 text-sm mt-2">{error}</p>
+        <p className="text-zinc-550 text-sm mt-2">{error}</p>
       </div>
     );
   }
 
-  if (!userProfile) {
+  if (!activeUser) {
     return (
-      <div className="flex flex-col items-center justify-center h-full font-mono text-zinc-500">
+      <div className="flex flex-col items-center justify-center h-full font-mono text-zinc-500 animate-pulse">
         AWAITING PROFILE METADATA...
       </div>
     );
   }
 
-  return (
-    <PolymorphicDashboard />
-  );
-}
+  if (!dashboardData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full font-mono text-zinc-500 animate-pulse">
+        INITIALIZING REAL-TIME TELEMETRY LAYER...
+      </div>
+    );
+  }
 
-// We can define this in the same file or a new one. For simplicity, here:
-import { useHasCapability } from "@/hooks/useHasCapability";
-import { useState } from "react";
-import AdminOverrideDrawer from "@/components/workspace/AdminOverrideDrawer";
-import ActivityLedger from "@/components/workspace/ActivityLedger";
-import BlockerBeacon from "@/components/workspace/BlockerBeacon";
-import ContextChat from "@/components/workspace/ContextChat";
-import { Zap, Radio } from "lucide-react";
+  const { role_tier, user_type, department } = activeUser;
 
-function PolymorphicDashboard() {
-  const hasStrategy = useHasCapability("strategy:view_matrix");
-  const hasDevOverride = useHasCapability("dev:override_blocker");
-  const hasAdminManage = useHasCapability("admin:manage_users");
-  
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  // 1. Client User Type
+  if (user_type === 'Client') {
+    return (
+      <ClientPortalView 
+        activeProjects={dashboardData.active_projects || []}
+        projectTasks={dashboardData.assigned_tasks || []}
+      />
+    );
+  }
 
-  const handleForceClear = async (taskId: string, status: string) => {
-    const token = localStorage.getItem("seven_token");
-    const res = await fetch(`http://127.0.0.1:8000/api/tasks/${taskId}/status`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ status })
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.detail || "Failed to update status");
-    }
-  };
-
-  // Demo broadcast logic
-  const [broadcastMsg, setBroadcastMsg] = useState("");
-  const handleBroadcast = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!broadcastMsg) return;
-    const token = localStorage.getItem("seven_token");
-    await fetch("http://127.0.0.1:8000/api/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ message: broadcastMsg })
-    });
-    setBroadcastMsg("");
-  };
-
-  return (
-    <div className="flex flex-col h-full space-y-6">
-      
-      {hasStrategy && (
-        <div className="bg-[#111] border border-zinc-800 p-6 rounded-lg grid grid-cols-3 gap-6">
-          {/* Actionable Metrics */}
-          <div 
-            onClick={() => {
-              // Simulated selected blocked task
-              setSelectedTask({
-                task_id: "demo-task-1",
-                title: "CRITICAL: Database Locking Issue",
-                description: "The main users table is locking during batch updates.",
-                status: "Blocked"
-              });
-              setDrawerOpen(true);
-            }}
-            className="cursor-pointer hover:bg-zinc-800/50 transition-colors p-4 border border-zinc-800 rounded bg-black flex flex-col items-center justify-center text-center"
-          >
-            <p className="text-[#ff1744] text-3xl font-bold font-mono">1</p>
-            <p className="text-zinc-500 text-xs font-mono uppercase mt-2">Active Blocker (Click to Override)</p>
-          </div>
-          <div className="p-4 border border-zinc-800 rounded bg-black flex flex-col items-center justify-center text-center">
-            <p className="text-emerald-400 text-3xl font-bold font-mono">100%</p>
-            <p className="text-zinc-500 text-xs font-mono uppercase mt-2">Squad Velocity</p>
-          </div>
-          
-          {hasAdminManage && (
-            <div className="p-4 border border-zinc-800 rounded bg-black/50 col-span-3 lg:col-span-1 flex flex-col">
-              <h3 className="text-xs font-mono text-[#00E5FF] mb-2 flex items-center uppercase">
-                <Radio className="w-4 h-4 mr-2" />
-                Unified Broadcast Terminal
-              </h3>
-              <form onSubmit={handleBroadcast} className="flex space-x-2 mt-auto">
-                <input 
-                  type="text" 
-                  placeholder="Transmit global system alert..." 
-                  value={broadcastMsg}
-                  onChange={e => setBroadcastMsg(e.target.value)}
-                  className="flex-1 bg-black border border-zinc-800 text-xs p-2 outline-none focus:border-[#00E5FF] font-mono text-zinc-200"
-                />
-                <button type="submit" className="bg-[#00E5FF]/20 text-[#00E5FF] px-3 font-mono text-xs hover:bg-[#00E5FF] hover:text-black transition-colors">
-                  SEND
-                </button>
-              </form>
+  // 2. CEO / Exec View (only show simulation controls if they are the actual logged in CEO, not a simulated user)
+  if (role_tier === 1) {
+    return (
+      <div className="flex flex-col h-full min-h-0 space-y-6">
+        
+        {/* CEO Persona Switcher Auditing Console */}
+        <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+            <div>
+              <span className="text-[10px] font-mono text-[#ff1744] tracking-[0.2em] uppercase">CEO SECURITY CONSOLE</span>
+              <h3 className="text-sm font-bold text-white font-mono mt-0.5">WORKSPACE SIMULATION MATRIX</h3>
             </div>
+          </div>
+          <div className="flex items-center space-x-3 font-mono text-xs">
+            <span className="text-zinc-400">AUDIT VIEW:</span>
+            <select
+              value={personaMode}
+              onChange={(e) => setPersonaMode(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 text-white rounded p-1.5 focus:outline-none focus:border-[#ff1744]"
+            >
+              <option value="executive">Tier 1 Executive (Default)</option>
+              <option value="it">IT Employee Dashboard</option>
+              <option value="creative">Creative Employee Dashboard</option>
+              <option value="corporate">Corporate CRM Dashboard</option>
+              <option value="marketing">Marketing Dashboard</option>
+              <option value="client">Client Portal Dashboard</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Dynamic Auditing Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          {personaMode === "executive" && (
+            <Tier1ExecutiveView
+              projects={dashboardData.active_projects || []}
+              data={dashboardData || {}}
+            />
+          )}
+          {personaMode === "it" && (
+            <ITDashboardView assignedTasks={dashboardData.assigned_tasks || []} />
+          )}
+          {personaMode === "creative" && (
+            <CreativeDashboardView assignedTasks={dashboardData.assigned_tasks || []} />
+          )}
+          {personaMode === "corporate" && (
+            <CorporateDashboardView assignedTasks={dashboardData.assigned_tasks || []} />
+          )}
+          {personaMode === "marketing" && (
+            <MarketingDashboardView assignedTasks={dashboardData.assigned_tasks || []} />
+          )}
+          {personaMode === "client" && (
+            <ClientPortalView 
+              activeProjects={dashboardData.active_projects || []}
+              projectTasks={dashboardData.assigned_tasks || []}
+            />
           )}
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-        
-        {/* Execution Modules */}
-        <div className="bg-[#111] border border-zinc-800 p-6 rounded-lg flex flex-col">
-           <h3 className="text-[#00E5FF] font-mono uppercase mb-4 border-b border-zinc-800 pb-2">Operational Execution Engine</h3>
-           <div className="mb-4">
-             <BlockerBeacon />
-           </div>
-           <div className="flex-1 overflow-hidden min-h-[300px]">
-             {/* Note: In a real app we'd pass a real channel ID. Hardcoding for demo layout. */}
-             <ContextChat channelId="demo-channel-id" />
-           </div>
-        </div>
-
-        {/* Global Feed */}
-        <div className="bg-[#111] border border-zinc-800 p-6 rounded-lg flex flex-col">
-          <h3 className="text-emerald-400 font-mono uppercase mb-4 border-b border-zinc-800 pb-2">Global System Telemetry</h3>
-          <div className="flex-1 overflow-hidden">
-            <ActivityLedger />
-          </div>
-        </div>
-
       </div>
+    );
+  }
 
-      <AdminOverrideDrawer 
-        isOpen={drawerOpen} 
-        onClose={() => setDrawerOpen(false)}
-        task={selectedTask}
-        onForceClear={handleForceClear}
-      />
-    </div>
+  // 3. Employee Role Redirection based on department
+  const userDept = (department || "").toLowerCase();
+  
+  if (userDept === "it" || userDept.includes("dev") || userDept.includes("tech") || userDept.includes("saas")) {
+    return <ITDashboardView assignedTasks={dashboardData.assigned_tasks || []} />;
+  }
+  if (userDept === "creative" || userDept.includes("design") || userDept.includes("art")) {
+    return <CreativeDashboardView assignedTasks={dashboardData.assigned_tasks || []} />;
+  }
+  if (userDept === "corporate" || userDept.includes("sales") || userDept.includes("crm") || userDept.includes("finance")) {
+    return <CorporateDashboardView assignedTasks={dashboardData.assigned_tasks || []} />;
+  }
+  if (userDept === "marketing" || userDept.includes("promo") || userDept.includes("agency")) {
+    return <MarketingDashboardView assignedTasks={dashboardData.assigned_tasks || []} />;
+  }
+
+  // Fallback default view (IT Technical Dashboard)
+  return (
+    <ITDashboardView assignedTasks={dashboardData.assigned_tasks || []} />
   );
 }

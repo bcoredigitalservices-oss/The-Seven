@@ -10,7 +10,7 @@ export default function BlockerBeacon({ taskId }: { taskId: string }) {
     setIsActivating(true);
     try {
       const token = localStorage.getItem("seven_token");
-      await fetch(`http://127.0.0.1:8000/api/tasks/${taskId}/status`, {
+      await fetch(`http://127.0.0.1:8080/api/tasks/${taskId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

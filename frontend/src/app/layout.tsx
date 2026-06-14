@@ -18,13 +18,18 @@ export const metadata: Metadata = {
   description: "High-performance real-time developer workspace designed for Bcore Digital.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-192.png",
+    icon: [
+      { url: "/favicon.png",          sizes: "32x32",  type: "image/png" },
+      { url: "/icons/icon-192.png",   sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png",   sizes: "512x512", type: "image/png" },
+    ],
     apple: "/icons/icon-192.png",
+    shortcut: "/favicon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#00e5ff",
+  themeColor: "#0a1a5c",
 };
 
 export default function RootLayout({

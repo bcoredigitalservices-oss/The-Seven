@@ -29,7 +29,7 @@ export default function AdminUsersPortal() {
     setLoadingCaps(true);
     const token = localStorage.getItem("seven_token");
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/users/${userId}/capabilities`, {
+      const res = await fetch(`http://127.0.0.1:8080/api/users/${userId}/capabilities`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -52,7 +52,7 @@ export default function AdminUsersPortal() {
     setFormError("");
     const token = localStorage.getItem("seven_token");
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/admin/users", {
+      const res = await fetch("http://127.0.0.1:8080/api/admin/users", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -87,21 +87,21 @@ export default function AdminUsersPortal() {
     try {
       if (currentState === null) {
         // Inherited -> Granted
-        await fetch(`http://127.0.0.1:8000/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
+        await fetch(`http://127.0.0.1:8080/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ is_granted: true })
         });
       } else if (currentState === "granted") {
         // Granted -> Denied
-        await fetch(`http://127.0.0.1:8000/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
+        await fetch(`http://127.0.0.1:8080/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ is_granted: false })
         });
       } else {
         // Denied -> Inherited (Delete override)
-        await fetch(`http://127.0.0.1:8000/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
+        await fetch(`http://127.0.0.1:8080/api/users/${selectedUser.user_id}/capabilities/${capabilityId}`, {
           method: "DELETE",
           headers: { "Authorization": `Bearer ${token}` }
         });

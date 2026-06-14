@@ -1,7 +1,8 @@
 "use client";
 
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
-import { useRouter } from "next/navigation";
+import { useSevenStore } from "@/store/useSevenStore";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   LogOut, 
   Terminal, 
@@ -17,6 +18,7 @@ import { useState } from "react";
 
 export default function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { 
     user, 
     logout, 
@@ -27,6 +29,7 @@ export default function Sidebar() {
     users,
     login 
   } = useWorkspaceStore();
+  const { userProfile } = useSevenStore();
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   if (!user) return null;
@@ -75,11 +78,11 @@ export default function Sidebar() {
       <div>
         {/* Logo Section */}
         <div className="p-6 border-b border-zinc-800/60 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
+          <div onClick={() => router.push('/workspace')} className="flex items-center space-x-2.5 cursor-pointer hover:opacity-85 transition-opacity">
             <div className="w-7 h-7 rounded bg-gradient-to-tr from-[#00e5ff] to-cyan-800 flex items-center justify-center font-mono font-bold text-sm text-[#09090b] shadow-[0_0_10px_rgba(0,229,255,0.3)]">
               7
             </div>
-            <span className="font-bold tracking-widest text-lg text-white font-mono">SEVEN</span>
+            <span className="font-bold tracking-widest text-sm text-white font-mono">B-CORE DIGITAL</span>
           </div>
 
           {/* WS Realtime Sync Status Indicator */}
@@ -176,10 +179,71 @@ export default function Sidebar() {
         {/* Navigation Section */}
         <nav className="p-4 space-y-1.5">
           <span className="px-3 text-[10px] font-mono text-zinc-600 uppercase tracking-widest block mb-2">Workspace</span>
-          <button className="w-full text-left px-3 py-2 rounded-lg bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff] font-mono text-xs flex items-center space-x-2">
-            <Zap className="w-3.5 h-3.5" />
-            <span>Sprint Board</span>
-          </button>
+          
+          {userProfile?.role_tier === 1 ? (
+            <>
+              <button 
+                onClick={() => router.push('/workspace/users')} 
+                className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs flex items-center space-x-2 transition-all ${
+                  pathname === '/workspace/users'
+                    ? "bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff]"
+                    : "bg-transparent border border-transparent hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Users Dashboard</span>
+              </button>
+              <button 
+                onClick={() => router.push('/workspace/admin')} 
+                className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs flex items-center space-x-2 transition-all ${
+                  pathname === '/workspace/admin'
+                    ? "bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff]"
+                    : "bg-transparent border border-transparent hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>IAM Root Console</span>
+              </button>
+              <button 
+                onClick={() => router.push('/workspace/operations')} 
+                className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs flex items-center space-x-2 transition-all ${
+                  pathname === '/workspace/operations'
+                    ? "bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff]"
+                    : "bg-transparent border border-transparent hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Operations Matrix</span>
+              </button>
+              <button 
+                onClick={() => router.push('/workspace/leads')} 
+                className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs flex items-center space-x-2 transition-all ${
+                  pathname === '/workspace/leads'
+                    ? "bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff]"
+                    : "bg-transparent border border-transparent hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Growth Engine (Leads)</span>
+              </button>
+              <button 
+                onClick={() => router.push('/workspace/analytics')} 
+                className={`w-full text-left px-3 py-2 rounded-lg font-mono text-xs flex items-center space-x-2 transition-all ${
+                  pathname === '/workspace/analytics'
+                    ? "bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff]"
+                    : "bg-transparent border border-transparent hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Business Analytics</span>
+              </button>
+            </>
+          ) : (
+            <button className="w-full text-left px-3 py-2 rounded-lg bg-[#00e5ff]/5 border border-[#00e5ff]/10 text-[#00e5ff] font-mono text-xs flex items-center space-x-2">
+              <Zap className="w-3.5 h-3.5" />
+              <span>Sprint Board</span>
+            </button>
+          )}
         </nav>
       </div>
 

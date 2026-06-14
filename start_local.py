@@ -13,34 +13,46 @@ def main():
     print("==================================================\n")
 
     # Start Backend
-    print("[SYSTEM] Booting Python FastAPI Backend (Port 8000)...")
+    print("[SYSTEM] Booting Python FastAPI Backend (Port 8080)...")
     backend_env = os.environ.copy()
+    if "DATABASE_URL" not in backend_env:
+        backend_env["DATABASE_URL"] = "postgresql://traveluser:travelpassword@localhost:5433/seven"
     
+    is_windows = os.name == 'nt'
+    uvicorn_path = r"venv\Scripts\uvicorn" if is_windows else "venv/bin/uvicorn"
+    npm_cmd = "npm.cmd" if is_windows else "npm"
+
     # We use shell=True and point to the local venv uvicorn
     backend_process = subprocess.Popen(
-        [r"venv\Scripts\uvicorn", "app.main:app", "--port", "8000", "--reload"],
+        [uvicorn_path, "app.main:app", "--port", "8080", "--reload"],
         cwd=backend_dir,
         env=backend_env,
-        shell=True
+        shell=is_windows # only use shell=True on windows if possible, or just True for both
     )
 
     # Give backend a moment to start
     time.sleep(2)
 
+    # Kill any stale process on port 3050 before starting frontend
+    print("[SYSTEM] Clearing port 3050 of any stale processes...")
+    import subprocess as _sp
+    _sp.run(["fuser", "-k", "3050/tcp"], capture_output=True)
+
     # Start Frontend
-    print("[SYSTEM] Booting Next.js Frontend (Port 3000)...")
+    print("[SYSTEM] Booting Next.js Frontend (Port 3050)...")
     frontend_env = os.environ.copy()
+    frontend_env["PORT"] = "3050"
     frontend_process = subprocess.Popen(
-        ["npm.cmd", "run", "dev"],
+        [npm_cmd, "run", "dev", "--", "-p", "3050"],
         cwd=frontend_dir,
         env=frontend_env,
-        shell=True
+        shell=is_windows
     )
 
     print("\n==================================================")
     print("  ALL SYSTEMS ONLINE")
-    print("  Frontend Interface: http://localhost:3000")
-    print("  Backend API:        http://localhost:8000")
+    print("  Frontend Interface: http://localhost:3050")
+    print("  Backend API:        http://localhost:8080")
     print("  Press Ctrl+C to safely terminate the workspace.")
     print("==================================================\n")
 

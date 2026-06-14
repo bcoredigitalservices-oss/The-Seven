@@ -49,14 +49,33 @@ class UserBase(BaseModel):
     role_tier: int = 4
     department_id: Optional[str] = None
     current_status: str = "Active"
+    department: Optional[str] = None
+    sub_department: Optional[str] = None
+    functional_role: Optional[str] = None
+    specialization: Optional[str] = None
+    seniority_level: Optional[str] = None
+    user_type: Optional[str] = "Employee"
+
+class UserAdminUpdate(BaseModel):
+    department: Optional[str] = None
+    sub_department: Optional[str] = None
+    functional_role: Optional[str] = None
+    specialization: Optional[str] = None
+    seniority_level: Optional[str] = None
+    user_type: Optional[str] = None
 
 class UserCreate(UserBase):
-    password: str
+    pass
+
 
 class UserLogin(BaseModel):
     email: str
     password: str
     totp_code: Optional[str] = None
+
+class SetupPassword(BaseModel):
+    token: str
+    new_password: str
 
 class UserUpdateStatus(BaseModel):
     current_status: str
@@ -71,12 +90,33 @@ class UserResponse(UserBase):
 class ProjectBase(BaseModel):
     title: str
     status: str = "Active"
+    deadline: Optional[datetime] = None
+    worker_type: Optional[str] = None
+    assigned_user_id: Optional[str] = None
+    assigned_group_id: Optional[str] = None
+    department: Optional[str] = None
+    pipeline: Optional[list] = None
+    timeline: Optional[list] = None
 
 class ProjectCreate(ProjectBase):
-    pass
+    client_id: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    client_id: Optional[str] = None
+    deadline: Optional[datetime] = None
+    worker_type: Optional[str] = None
+    assigned_user_id: Optional[str] = None
+    assigned_group_id: Optional[str] = None
+    department: Optional[str] = None
+    pipeline: Optional[list] = None
+    timeline: Optional[list] = None
 
 class ProjectResponse(ProjectBase):
     project_id: str
+    client_id: Optional[str] = None
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -127,6 +167,8 @@ class MessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+Message = MessageResponse
+
 # Channel Schemas
 class ChannelBase(BaseModel):
     attached_task_id: Optional[str] = None
@@ -154,3 +196,152 @@ class AdminDashboardResponse(BaseModel):
     velocity_rate: float  # Deployed/Done tasks ratio
     active_blockers: List[TaskResponse]
     all_tasks: List[TaskResponse]
+
+class DashboardOverview(BaseModel):
+    active_projects: Optional[List[ProjectResponse]] = None
+    assigned_tasks: Optional[List[TaskResponse]] = None
+    department_blockers: Optional[List[TaskResponse]] = None
+    system_metrics: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+class IncomingWebhookPayload(BaseModel):
+    source: str
+    data: Optional[dict] = None
+
+    class Config:
+        extra = "allow"
+
+class WorkLogCreate(BaseModel):
+    task_id: str
+    hours_spent: float
+    description: Optional[str] = None
+
+class WorkLogResponse(BaseModel):
+    log_id: str
+    user_id: str
+    task_id: str
+    date_logged: datetime
+    hours_spent: float
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# Group Schemas
+class GroupBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    project_id: Optional[str] = None
+
+class GroupCreate(GroupBase):
+    pass
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    project_id: Optional[str] = None
+
+class UserGroupBase(BaseModel):
+    user_id: str
+    role: str = "Member"
+
+class UserGroupCreate(UserGroupBase):
+    pass
+
+class GroupResponse(GroupBase):
+    group_id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class UserGroupResponse(BaseModel):
+    id: str
+    user_id: str
+    group_id: str
+    role: str
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# Lead Schemas
+class LeadResponse(BaseModel):
+    lead_id: str
+    source: str
+    raw_payload: Optional[dict] = None
+    normalized_data: Optional[dict] = None
+
+    # New Enrichment Fields
+    client_name: Optional[str] = None
+    project_title: Optional[str] = None
+    contact_email: Optional[str] = None
+    email_verification_status: Optional[str] = None
+    phone: Optional[str] = None
+    website_url: Optional[str] = None
+    apollo_id: Optional[str] = None
+
+    status: str
+    assigned_to: Optional[str] = None
+    created_at: datetime
+
+    # Lead Maturity & Enrichment State Tracking
+    maturity_status: Optional[str] = "immature"
+    enrichment_attempts: Optional[int] = 0
+    last_enrichment_error: Optional[str] = None
+    contact_person_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class LeadUpdateStatus(BaseModel):
+    status: str
+
+class LeadAssign(BaseModel):
+    assigned_to: Optional[str] = None
+
+class LeadManualCreate(BaseModel):
+    source: str
+    name: str
+    industry: str
+    budget: Optional[str] = "Not Specified"
+    url: Optional[str] = ""
+    description: Optional[str] = ""
+    contact_email: Optional[str] = None
+    contact_person_name: Optional[str] = None
+    phone: Optional[str] = None
+    email_verification_status: Optional[str] = "unknown"
+
+class LeadUpdateContact(BaseModel):
+    contact_person_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    website_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    client_name: Optional[str] = None
+    project_title: Optional[str] = None
+
+# Enrichment and Scrape schemas
+class ApolloPullRequest(BaseModel):
+    query: str
+    location: Optional[str] = None
+    limit: Optional[int] = 10
+
+class HunterFindRequest(BaseModel):
+    domain: str
+    first_name: str
+    last_name: str
+
+class SnovVerifyRequest(BaseModel):
+    email: str
+
+class ScrapeRunRequest(BaseModel):
+    target_urls: List[str]
+    depth: Optional[int] = 1
+
+
+

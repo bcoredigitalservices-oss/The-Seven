@@ -27,3 +27,6 @@ frontend/.env.production.local
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Root text files
+/*.txt

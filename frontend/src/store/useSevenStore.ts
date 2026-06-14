@@ -7,10 +7,104 @@ export interface UserProfile {
   role_tier: number;
   department_id: string | null;
   current_status: string;
+  department?: string | null;
+  sub_department?: string | null;
+  functional_role?: string | null;
+  specialization?: string | null;
+  seniority_level?: string | null;
+  user_type?: string | null;
+}
+
+export interface Project {
+  project_id: string;
+  title: string;
+  status: string;
+  client_id?: string | null;
+  created_at: string;
+  deadline?: string | null;
+  worker_type?: string | null;
+  assigned_user_id?: string | null;
+  assigned_group_id?: string | null;
+  department?: string | null;
+  pipeline?: any[] | null;
+  timeline?: any[] | null;
+}
+
+export interface Task {
+  task_id: string;
+  project_id: string;
+  assigned_user_id: string | null;
+  title: string;
+  description: string | null;
+  status: string;
+  industry_meta?: any;
+  priority?: string;
+  due_date?: string | null;
+}
+
+export interface Lead {
+  lead_id: string;
+  source: string;
+  raw_payload?: any;
+  normalized_data: {
+    name?: string;
+    industry?: string;
+    [key: string]: any;
+  };
+  client_name?: string | null;
+  project_title?: string | null;
+  contact_email?: string | null;
+  email_verification_status?: string | null;
+  phone?: string | null;
+  website_url?: string | null;
+  apollo_id?: string | null;
+  status: string;
+  assigned_to: string | null;
+  created_at: string;
+  maturity_status?: string;
+  enrichment_attempts?: number;
+  last_enrichment_error?: string | null;
+  contact_person_name?: string | null;
+  linkedin_url?: string | null;
+}
+
+export interface WorkLog {
+  log_id: string;
+  user_id: string;
+  task_id: string;
+  date_logged: string;
+  hours_spent: number;
+  description: string | null;
+}
+
+export interface Group {
+  group_id: string;
+  name: string;
+  description: string | null;
+  project_id?: string | null;
+  created_at: string;
+}
+
+export interface GroupMember {
+  id: string;
+  user_id: string;
+  group_id: string;
+  role: string;
+  user_name?: string;
+  user_email?: string;
+}
+
+export interface DashboardOverview {
+  active_projects: Project[] | null;
+  assigned_tasks: Task[] | null;
+  department_blockers: Task[] | null;
+  system_metrics: Record<string, any> | null;
 }
 
 interface SevenStore {
   userProfile: UserProfile | null;
+  simulatedUser: UserProfile | null;
+  setSimulatedUser: (user: UserProfile | null) => void;
   isLoading: boolean;
   error: string | null;
   fetchUser: () => Promise<void>;
@@ -32,23 +126,120 @@ interface SevenStore {
   capabilities: any[];
   fetchAllUsers: () => Promise<void>;
   fetchCapabilities: () => Promise<void>;
+
+  // Dashboard Data State
+  dashboardData: DashboardOverview | null;
+  fetchDashboardOverview: () => Promise<void>;
+
+  // Business Analytics State
+  businessAnalyticsData: any | null;
+  fetchBusinessAnalytics: () => Promise<void>;
+
+  // Leads State
+  leads: Lead[];
+  fetchLeads: () => Promise<void>;
+  updateLeadStatus: (leadId: string, status: string) => Promise<boolean>;
+  updateLeadContact: (leadId: string, contactData: {
+    contact_person_name?: string;
+    contact_email?: string;
+    phone?: string;
+    website_url?: string;
+    linkedin_url?: string;
+    client_name?: string;
+    project_title?: string;
+  }) => Promise<Lead | null>;
+  assignLead: (leadId: string, userId: string) => Promise<boolean>;
+  createManualLead: (leadData: {
+    source: string;
+    name: string;
+    industry: string;
+    budget?: string;
+    url?: string;
+    description?: string;
+    contact_email?: string;
+    contact_person_name?: string;
+    phone?: string;
+    email_verification_status?: string;
+  }) => Promise<boolean>;
+  triggerFetchLeads: () => Promise<boolean>;
+  pullApolloLeads: (query: string, location?: string, limit?: number) => Promise<{ success: boolean; error?: string }>;
+  enrichLead: (leadId: string) => Promise<{ success: boolean; error?: string }>;
+  verifyLeadEmail: (leadId: string) => Promise<{ success: boolean; error?: string }>;
+  runScraper: (targetUrls: string[], depth?: number) => Promise<boolean>;
+  findEmail: (domain: string, firstName: string, lastName: string) => Promise<any>;
+  verifyEmail: (email: string) => Promise<any>;
+
+  // Work Logs State
+  workLogs: WorkLog[];
+  fetchWorkLogs: () => Promise<void>;
+  submitWorkLog: (taskId: string, hours: number, description: string) => Promise<boolean>;
+
+  // Tier 1 Admin User Management
+  adminUsers: UserProfile[];
+  fetchAdminUsers: () => Promise<void>;
+  updateUserMetadata: (userId: string, updateData: any) => Promise<boolean>;
+  projects: Project[];
+  fetchProjects: () => Promise<void>;
+  createProject: (projectData: { 
+    title: string; 
+    client_id?: string | null;
+    deadline?: string | null;
+    worker_type?: string | null;
+    assigned_user_id?: string | null;
+    assigned_group_id?: string | null;
+    department?: string | null;
+  }) => Promise<boolean>;
+  updateProject: (projectId: string, updateData: any) => Promise<boolean>;
+  deleteProject: (projectId: string) => Promise<boolean>;
+
+  // Task Management State
+  tasks: Task[];
+  fetchTasks: () => Promise<void>;
+  createTask: (taskData: { title: string; description: string; project_id: string; assigned_user_id?: string | null; due_date?: string | null }) => Promise<boolean>;
+  updateTaskStatus: (taskId: string, status: string) => Promise<boolean>;
+  assignTask: (taskId: string, userId: string) => Promise<boolean>;
+
+  // Group Management State
+  groups: Group[];
+  fetchGroups: () => Promise<void>;
+  createGroup: (groupData: { name: string; description?: string; project_id?: string | null }) => Promise<Group | null>;
+  updateGroup: (groupId: string, groupData: { name?: string; description?: string; project_id?: string | null }) => Promise<boolean>;
+  deleteGroup: (groupId: string) => Promise<boolean>;
+  fetchGroupMembers: (groupId: string) => Promise<GroupMember[]>;
+  addUserToGroup: (groupId: string, memberData: { user_id: string; role: string }) => Promise<boolean>;
+  removeUserFromGroup: (groupId: string, userId: string) => Promise<boolean>;
+
+  // Beacons, Meetings & Reminders State
+  beacons: any[];
+  meetings: any[];
+  reminders: any[];
+  fetchBeacons: () => Promise<void>;
+  fetchMeetings: () => Promise<void>;
+  fetchReminders: () => Promise<void>;
+  replyBeacon: (beaconId: string, replyContent: string) => Promise<boolean>;
+  replyReminder: (reminderId: string, replyContent: string) => Promise<boolean>;
 }
 
 export const useSevenStore = create<SevenStore>((set, get) => ({
   userProfile: null,
+  simulatedUser: null,
+  setSimulatedUser: (user: UserProfile | null) => set({ simulatedUser: user }),
   currentUserCapabilities: [],
   isLoading: true,
   error: null,
   ws: null,
   wsConnected: false,
   activityLogs: [],
+  beacons: [],
+  meetings: [],
+  reminders: [],
   
   fetchCurrentUserCapabilities: async () => {
     const { userProfile } = get();
     if (!userProfile) return;
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch(`http://127.0.0.1:8000/api/users/${userProfile.user_id}/capabilities`, {
+      const res = await fetch(`http://127.0.0.1:8080/api/users/${userProfile.user_id}/capabilities`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -96,7 +287,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     if (!userProfile) return;
     if (ws) return; // already connecting/connected
 
-    const socket = new WebSocket(`ws://127.0.0.1:8000/ws/${userProfile.user_id}`);
+    const socket = new WebSocket(`ws://127.0.0.1:8080/ws/${userProfile.user_id}`);
     
     socket.onopen = () => {
       set({ ws: socket, wsConnected: true });
@@ -107,6 +298,38 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       const data = JSON.parse(event.data);
       console.log("[WS MSG]", data);
       get().addActivityLog(data);
+      if (data && data.type === "new_lead_arrived") {
+        get().fetchLeads();
+      }
+      if (data && data.type === "project_updated" && data.project) {
+        const updatedProj = data.project;
+        set((state) => ({
+          projects: state.projects.map((p) => 
+            p.project_id === updatedProj.project_id ? updatedProj : p
+          )
+        }));
+      }
+      if (data && (data.type === "task_created" || data.type === "task_updated" || data.type === "blocker_beacon" || data.type === "new_reminder" || data.type === "new_meeting")) {
+        // Automatically refresh dashboard telemetry
+        get().fetchDashboardOverview();
+        
+        // Also update local tasks array if a task was updated/created
+        if (data.task) {
+          const t = data.task;
+          set((state) => {
+            const exists = state.tasks.some(x => x.task_id === t.task_id);
+            if (exists) {
+              return {
+                tasks: state.tasks.map(x => x.task_id === t.task_id ? t : x)
+              };
+            } else {
+              return {
+                tasks: [...state.tasks, t]
+              };
+            }
+          });
+        }
+      }
     };
 
     socket.onclose = () => {
@@ -141,7 +364,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   fetchAllUsers: async () => {
     try {
       const token = localStorage.getItem("seven_token");
-      const res = await fetch("http://127.0.0.1:8000/api/auth/users", {
+      const res = await fetch("http://127.0.0.1:8080/api/auth/users", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -155,7 +378,7 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
 
   fetchCapabilities: async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/capabilities");
+      const res = await fetch("http://127.0.0.1:8080/api/capabilities");
       if (res.ok) {
         const caps = await res.json();
         set({ capabilities: caps });
@@ -163,5 +386,746 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     } catch (err) {
       console.error("Failed to fetch capabilities", err);
     }
+  },
+
+  dashboardData: null,
+  fetchDashboardOverview: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/dashboard/overview?simulate_user_id=${simulatedUser.user_id}`
+        : "http://127.0.0.1:8080/api/v1/dashboard/overview";
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ dashboardData: data });
+      }
+    } catch (e) {
+      console.error("Failed to load dashboard overview data", e);
+    }
+  },
+
+  businessAnalyticsData: null,
+  fetchBusinessAnalytics: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/business-analytics", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ businessAnalyticsData: data });
+      }
+    } catch (e) {
+      console.error("Failed to load business analytics data", e);
+    }
+  },
+
+  leads: [],
+  fetchLeads: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/leads", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ leads: data });
+      } else {
+        console.warn("GET /api/v1/leads failed or not implemented on backend yet.");
+        set({ leads: [] });
+      }
+    } catch (e) {
+      console.error("Failed to load leads", e);
+    }
+  },
+
+  updateLeadStatus: async (leadId: string, status: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        if (status === "Qualified") {
+          get().fetchProjects();
+          get().fetchDashboardOverview();
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update lead status", e);
+    }
+    return false;
+  },
+
+  updateLeadContact: async (leadId: string, contactData: any) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(contactData)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        get().fetchLeads();
+        return data;
+      }
+    } catch (e) {
+      console.error("Failed to update lead contact details", e);
+    }
+    return null;
+  },
+
+  assignLead: async (leadId: string, userId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/assign/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to assign lead", e);
+    }
+    return false;
+  },
+
+  createManualLead: async (leadData: {
+    source: string;
+    name: string;
+    industry: string;
+    budget?: string;
+    url?: string;
+    description?: string;
+    contact_email?: string;
+    contact_person_name?: string;
+    phone?: string;
+    email_verification_status?: string;
+  }) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(leadData)
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to create manual lead", e);
+    }
+    return false;
+  },
+
+  triggerFetchLeads: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/fetch", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to trigger live lead fetch", e);
+    }
+    return false;
+  },
+
+  pullApolloLeads: async (query: string, location?: string, limit?: number) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/leads/pull", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ query, location, limit })
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return { success: true };
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.detail || "API returned an error code" };
+      }
+    } catch (e: any) {
+      console.error("Failed to pull Apollo leads", e);
+      return { success: false, error: e.message || "Network error" };
+    }
+  },
+
+  enrichLead: async (leadId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/enrich`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return { success: true };
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.detail || "API returned an error code" };
+      }
+    } catch (e: any) {
+      console.error("Failed to enrich lead", e);
+      return { success: false, error: e.message || "Network error" };
+    }
+  },
+
+  verifyLeadEmail: async (leadId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/leads/${leadId}/verify`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        get().fetchLeads();
+        return { success: true };
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.detail || "API returned an error code" };
+      }
+    } catch (e: any) {
+      console.error("Failed to verify lead email", e);
+      return { success: false, error: e.message || "Network error" };
+    }
+  },
+
+  runScraper: async (targetUrls: string[], depth?: number) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/scrape/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ target_urls: targetUrls, depth })
+      });
+      if (res.ok) {
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to run scraper job", e);
+    }
+    return false;
+  },
+
+  findEmail: async (domain: string, firstName: string, lastName: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/email/find", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ domain, first_name: firstName, last_name: lastName })
+      });
+      if (res.ok) {
+        return await res.json();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { error: data.detail || "API returned an error code" };
+      }
+    } catch (e: any) {
+      console.error("Failed to find email", e);
+      return { error: e.message || "Network error" };
+    }
+  },
+
+  verifyEmail: async (email: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/email/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        return await res.json();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        return { error: data.detail || "API returned an error code" };
+      }
+    } catch (e: any) {
+      console.error("Failed to verify email", e);
+      return { error: e.message || "Network error" };
+    }
+  },
+
+
+  workLogs: [],
+  fetchWorkLogs: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
+        : "http://127.0.0.1:8080/api/v1/worklogs";
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ workLogs: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch work logs", e);
+    }
+  },
+  submitWorkLog: async (taskId: string, hours: number, description: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/worklogs?simulate_user_id=${simulatedUser.user_id}`
+        : "http://127.0.0.1:8080/api/v1/worklogs";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+          hours_spent: hours,
+          description: description
+        })
+      });
+      if (res.ok) {
+        get().fetchWorkLogs();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to submit work log", e);
+    }
+    return false;
+  },
+
+  adminUsers: [],
+  fetchAdminUsers: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/admin/users", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ adminUsers: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch admin users", e);
+    }
+  },
+  updateUserMetadata: async (userId: string, updateData: any) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/v1/admin/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      });
+      if (res.ok) {
+        get().fetchAdminUsers();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update user metadata", e);
+    }
+    return false;
+  },
+  projects: [],
+  fetchProjects: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/projects", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ projects: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch projects in useSevenStore", e);
+    }
+  },
+  createProject: async (projectData: { 
+    title: string; 
+    client_id?: string | null;
+    deadline?: string | null;
+    worker_type?: string | null;
+    assigned_user_id?: string | null;
+    assigned_group_id?: string | null;
+    department?: string | null;
+  }) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(projectData)
+      });
+      if (res.ok) {
+        get().fetchProjects();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to create project", e);
+    }
+    return false;
+  },
+  updateProject: async (projectId: string, updateData: any) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/projects/${projectId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      });
+      if (res.ok) {
+        get().fetchProjects();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update project", e);
+    }
+    return false;
+  },
+  deleteProject: async (projectId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/projects/${projectId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        get().fetchProjects();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to delete project", e);
+    }
+    return false;
+  },
+
+  // Task Management Actions
+  tasks: [],
+  fetchTasks: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/tasks", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ tasks: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch tasks", e);
+    }
+  },
+  createTask: async (taskData: { title: string; description: string; project_id: string; assigned_user_id?: string | null; due_date?: string | null }) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(taskData)
+      });
+      if (res.ok) {
+        get().fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to create task", e);
+    }
+    return false;
+  },
+  updateTaskStatus: async (taskId: string, status: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/tasks/${taskId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        get().fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update task status", e);
+    }
+    return false;
+  },
+  assignTask: async (taskId: string, userId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`http://127.0.0.1:8080/api/tasks/${taskId}/assign/${userId}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        get().fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to assign task", e);
+    }
+    return false;
+  },
+
+  // Group Management Actions
+  groups: [],
+  fetchGroups: async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/groups");
+      if (res.ok) {
+        const data = await res.json();
+        set({ groups: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch groups", e);
+    }
+  },
+  createGroup: async (groupData: { name: string; description?: string; project_id?: string | null }) => {
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(groupData)
+      });
+      if (res.ok) {
+        const newGroup = await res.json();
+        get().fetchGroups();
+        return newGroup;
+      }
+    } catch (e) {
+      console.error("Failed to create group", e);
+    }
+    return null;
+  },
+  updateGroup: async (groupId: string, groupData: { name?: string; description?: string; project_id?: string | null }) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(groupData)
+      });
+      if (res.ok) {
+        get().fetchGroups();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update group", e);
+    }
+    return false;
+  },
+  deleteGroup: async (groupId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        get().fetchGroups();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to delete group", e);
+    }
+    return false;
+  },
+  fetchGroupMembers: async (groupId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.error("Failed to fetch group members", e);
+    }
+    return [];
+  },
+  addUserToGroup: async (groupId: string, memberData: { user_id: string; role: string }) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(memberData)
+      });
+      return res.ok;
+    } catch (e) {
+      console.error("Failed to add user to group", e);
+    }
+    return false;
+  },
+  removeUserFromGroup: async (groupId: string, userId: string) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8080/api/groups/${groupId}/members/${userId}`, {
+        method: "DELETE"
+      });
+      return res.ok;
+    } catch (e) {
+      console.error("Failed to remove user from group", e);
+    }
+    return false;
+  },
+
+  fetchBeacons: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/events/beacons", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ beacons: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch beacons", e);
+    }
+  },
+
+  fetchMeetings: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("http://127.0.0.1:8080/api/v1/events/meetings", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ meetings: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch meetings", e);
+    }
+  },
+
+  fetchReminders: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/events/reminders?simulate_user_id=${simulatedUser.user_id}`
+        : "http://127.0.0.1:8080/api/v1/events/reminders";
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ reminders: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch reminders", e);
+    }
+  },
+
+  replyBeacon: async (beaconId: string, replyContent: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/events/beacons/${beaconId}/reply?simulate_user_id=${simulatedUser.user_id}`
+        : `http://127.0.0.1:8080/api/v1/events/beacons/${beaconId}/reply`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ reply: replyContent })
+      });
+      if (res.ok) {
+        get().fetchBeacons();
+        get().fetchDashboardOverview();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to reply beacon", e);
+    }
+    return false;
+  },
+
+  replyReminder: async (reminderId: string, replyContent: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `http://127.0.0.1:8080/api/v1/events/reminders/${reminderId}/reply?simulate_user_id=${simulatedUser.user_id}`
+        : `http://127.0.0.1:8080/api/v1/events/reminders/${reminderId}/reply`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ reply: replyContent })
+      });
+      if (res.ok) {
+        get().fetchReminders();
+        get().fetchDashboardOverview();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to reply reminder", e);
+    }
+    return false;
   }
 }));
+
