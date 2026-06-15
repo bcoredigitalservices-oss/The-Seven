@@ -460,3 +460,63 @@ def remove_user_from_group(db: Session, group_id: str, user_id: str):
         return True
     return False
 
+
+def create_proposal(db: Session, proposal: schemas.ProposalCreate):
+    db_proposal = db.query(models.Proposal).filter(models.Proposal.doc_id == proposal.doc_id).first()
+    if db_proposal:
+        db_proposal.doc_type = proposal.doc_type
+        db_proposal.doc_format = proposal.doc_format
+        db_proposal.proposal_title = proposal.proposal_title
+        db_proposal.client_name = proposal.client_name
+        db_proposal.client_contact = proposal.client_contact
+        db_proposal.client_email = proposal.client_email
+        db_proposal.client_address = proposal.client_address
+        db_proposal.our_company_name = proposal.our_company_name
+        db_proposal.our_company_address = proposal.our_company_address
+        db_proposal.our_company_email = proposal.our_company_email
+        db_proposal.our_company_tax_id = proposal.our_company_tax_id
+        db_proposal.currency = proposal.currency
+        db_proposal.show_timeline = proposal.show_timeline
+        db_proposal.apply_tax = proposal.apply_tax
+        db_proposal.tax_percent = proposal.tax_percent
+        db_proposal.sign_name = proposal.sign_name
+        db_proposal.sign_title = proposal.sign_title
+        db_proposal.sign_image = proposal.sign_image
+        db_proposal.sections = proposal.sections
+        db_proposal.services = proposal.services
+    else:
+        db_proposal = models.Proposal(
+            doc_id=proposal.doc_id,
+            doc_type=proposal.doc_type,
+            doc_format=proposal.doc_format,
+            proposal_title=proposal.proposal_title,
+            client_name=proposal.client_name,
+            client_contact=proposal.client_contact,
+            client_email=proposal.client_email,
+            client_address=proposal.client_address,
+            our_company_name=proposal.our_company_name,
+            our_company_address=proposal.our_company_address,
+            our_company_email=proposal.our_company_email,
+            our_company_tax_id=proposal.our_company_tax_id,
+            currency=proposal.currency,
+            show_timeline=proposal.show_timeline,
+            apply_tax=proposal.apply_tax,
+            tax_percent=proposal.tax_percent,
+            sign_name=proposal.sign_name,
+            sign_title=proposal.sign_title,
+            sign_image=proposal.sign_image,
+            sections=proposal.sections,
+            services=proposal.services
+        )
+        db.add(db_proposal)
+    db.commit()
+    db.refresh(db_proposal)
+    return db_proposal
+
+def get_proposals(db: Session):
+    return db.query(models.Proposal).order_by(models.Proposal.created_at.desc()).all()
+
+def get_proposal(db: Session, doc_id: str):
+    return db.query(models.Proposal).filter(models.Proposal.doc_id == doc_id).first()
+
+

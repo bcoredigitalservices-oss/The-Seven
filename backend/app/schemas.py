@@ -343,5 +343,31 @@ class ScrapeRunRequest(BaseModel):
     target_urls: List[str]
     depth: Optional[int] = 1
 
+class ProposalCreate(BaseModel):
+    doc_id: str
+    doc_type: str = "single"
+    doc_format: str = "proposal"
+    proposal_title: str
+    client_name: Optional[str] = None
+    client_contact: Optional[str] = None
+    client_email: Optional[str] = None
+    client_address: Optional[str] = None
+    our_company_name: Optional[str] = None
+    our_company_address: Optional[str] = None
+    our_company_email: Optional[str] = None
+    our_company_tax_id: Optional[str] = None
+    currency: str = "USD"
+    show_timeline: bool = False
+    apply_tax: bool = False
+    tax_percent: float = 18.0
+    sign_name: Optional[str] = None
+    sign_title: Optional[str] = None
+    sign_image: Optional[str] = None
+    sections: Optional[list] = None
+    services: Optional[list] = None
 
+class ProposalResponse(ProposalCreate):
+    created_at: datetime
 
+    class Config:
+        from_attributes = True

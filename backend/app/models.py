@@ -299,3 +299,28 @@ class SupportRequest(Base):
     assignee = relationship("User", foreign_keys=[assigned_to_id])
 
 
+class Proposal(Base):
+    __tablename__ = "proposals"
+
+    doc_id = Column(String(50), primary_key=True)  # Proper Ref ID: BCD-xxxxxx
+    doc_type = Column(String(50), default="single")
+    doc_format = Column(String(50), default="proposal")
+    proposal_title = Column(String(255), nullable=False)
+    client_name = Column(String(255), nullable=True)
+    client_contact = Column(String(255), nullable=True)
+    client_email = Column(String(255), nullable=True)
+    client_address = Column(Text, nullable=True)
+    our_company_name = Column(String(255), nullable=True)
+    our_company_address = Column(Text, nullable=True)
+    our_company_email = Column(String(255), nullable=True)
+    our_company_tax_id = Column(String(100), nullable=True)
+    currency = Column(String(10), default="USD")
+    show_timeline = Column(Boolean, default=False)
+    apply_tax = Column(Boolean, default=False)
+    tax_percent = Column(Float, default=18.0)
+    sign_name = Column(String(255), nullable=True)
+    sign_title = Column(String(255), nullable=True)
+    sign_image = Column(Text, nullable=True)  # Base64 string
+    sections = Column(JSON, nullable=True)
+    services = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -2345,5 +2345,123 @@ def resolve_support_request(request_id: str, simulate_user_id: Optional[str] = N
     return {"status": "ok", "request_status": req.status}
 
 
+from pydantic import BaseModel
+
+class ProposalSendRequest(BaseModel):
+    client_email: str
+    client_name: str
+    proposal_title: str
+    amount_range: str
+    sender_name: str
+    sender_title: str
+    terms: str
+    doc_id: str
+
+@app.post("/api/v1/proposals/send")
+def send_proposal_endpoint(payload: ProposalSendRequest):
+    try:
+        resend.api_key = os.getenv("RESEND_API_KEY")
+        if not resend.api_key:
+            raise Exception("RESEND_API_KEY is not configured in environment variables.")
+            
+        html_content = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 30px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+              <h2 style="color: #0a1a5c; margin-top: 0;">B-Core Digital Services</h2>
+              <h3 style="color: #48b9e8; border-bottom: 2px solid #0a1a5c; padding-bottom: 8px;">Business Proposal / Cost Quote</h3>
+              <p>Dear {payload.client_name},</p>
+              <p>We are pleased to submit our formal proposal/quote <strong>{payload.proposal_title}</strong> (Reference: <strong>{payload.doc_id}</strong>) for your review.</p>
+              
+              <div style="background-color: #f5f7fa; padding: 15px; border-left: 4px solid #48b9e8; margin: 20px 0; border-radius: 0 4px 4px 0;">
+                <p style="margin: 0; font-size: 13px; color: #666;"><strong>PROJECT DETAILS:</strong></p>
+                <p style="margin: 5px 0 0 0; font-size: 15px; font-weight: bold; color: #1a1a1a;">{payload.proposal_title}</p>
+                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">Estimated Chargeable Range: <strong>{payload.amount_range}</strong></p>
+              </div>
+
+              <p><strong>Terms of Engagement:</strong><br/>
+              <span style="font-style: italic; color: #555; font-size: 13px;">{payload.terms}</span></p>
+
+              <p>Please reply directly to this email to sign off on the deliverables.</p>
+              
+              <p style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; font-size: 13px; color: #777;">
+                Sincerely,<br/>
+                <strong>{payload.sender_name}</strong><br/>
+                {payload.sender_title}<br/>
+                B-Core Digital Team
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+        
+        email_params = {
+            "from": "B-Core Digital <admin@seven.bcore.digital>",
+            "to": [payload.client_email],
+            "subject": f"Business Proposal: {payload.proposal_title} ({payload.doc_id})",
+            "html": html_content
+        }
+        resend.Emails.send(email_params)
+        logger.info(f"Proposal email sent to {payload.client_email} via Resend")
+        return {"status": "success", "message": f"Proposal sent via email to {payload.client_email}."}
+    except Exception as e:
+        logger.error(f"Failed to send proposal email: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi import UploadFile, File
+from fastapi.responses import FileResponse
+import shutil
+
+PROPOSALS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static_proposals")
+os.makedirs(PROPOSALS_DIR, exist_ok=True)
+
+@app.post("/api/v1/proposals/upload")
+def upload_proposal_pdf(doc_id: str, file: UploadFile = File(...)):
+    try:
+        file_path = os.path.join(PROPOSALS_DIR, f"{doc_id}.pdf")
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return {"status": "success", "message": f"Proposal PDF {doc_id} uploaded successfully."}
+    except Exception as e:
+        logger.error(f"Failed to upload proposal PDF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/proposals/share/{doc_id}")
+def share_proposal_pdf(doc_id: str):
+    file_path = os.path.join(PROPOSALS_DIR, f"{doc_id}.pdf")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Proposal PDF not found")
+    return FileResponse(file_path, media_type="application/pdf", filename=f"{doc_id}_proposal.pdf")
+
+@app.post("/api/v1/proposals")
+def save_proposal(payload: schemas.ProposalCreate, db: Session = Depends(get_db)):
+    try:
+        db_prop = crud.create_proposal(db, payload)
+        return db_prop
+    except Exception as e:
+        logger.error(f"Failed to save proposal: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/proposals")
+def list_proposals(db: Session = Depends(get_db)):
+    try:
+        return crud.get_proposals(db)
+    except Exception as e:
+        logger.error(f"Failed to fetch proposals list: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/proposals/{doc_id}")
+def get_proposal_by_ref(doc_id: str, db: Session = Depends(get_db)):
+    try:
+        db_prop = crud.get_proposal(db, doc_id)
+        if not db_prop:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        return db_prop
+    except Exception as e:
+        logger.error(f"Failed to fetch proposal {doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 

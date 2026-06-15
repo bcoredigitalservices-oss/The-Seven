@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSevenStore } from "@/store/useSevenStore";
-import { UserCheck, ShieldAlert, Cpu, Paintbrush, Briefcase, Megaphone, User } from "lucide-react";
+import { UserCheck, ShieldAlert, Cpu, Paintbrush, Briefcase, Megaphone, User, AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function PersonasPage() {
   const { userProfile, allUsers, fetchAllUsers, setSimulatedUser } = useSevenStore();
   const router = useRouter();
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(null), 5000);
+  };
 
   useEffect(() => {
     fetchAllUsers();
@@ -83,7 +89,7 @@ export default function PersonasPage() {
       setSimulatedUser(targetUser);
       router.push("/workspace");
     } else {
-      alert(`No suitable user found to simulate the "${roleId}" role. Please provision a user for that department first.`);
+      showToast(`No user found for the "${roleId}" role. Please provision a user for that department first.`);
     }
   };
 
@@ -105,7 +111,18 @@ export default function PersonasPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-6">
-      
+
+      {/* In-app Error Toast — replaces browser alert() */}
+      {errorToast && (
+        <div className="fixed top-6 right-6 z-50 flex items-start space-x-3 bg-[#1a0a0a] border border-[#ff1744]/40 text-[#ff1744] px-5 py-4 rounded-xl shadow-[0_0_30px_rgba(255,23,68,0.2)] max-w-sm font-mono text-xs animate-in slide-in-from-right-4 duration-300">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="flex-1 leading-relaxed">{errorToast}</p>
+          <button onClick={() => setErrorToast(null)} className="text-[#ff1744]/60 hover:text-[#ff1744] transition-colors shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
         <div>

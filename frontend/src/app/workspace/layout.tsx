@@ -2,10 +2,36 @@
 
 import { useEffect } from "react";
 import { useSevenStore } from "@/store/useSevenStore";
-import { LogOut, Activity, Briefcase, Bug, Compass, FolderKanban, ShieldAlert, Zap, LineChart, Settings, HelpCircle, Calendar, MessageCircle, UserCheck, CheckSquare, Target, Landmark } from "lucide-react";
+import { LogOut, Activity, Briefcase, Bug, Compass, FolderKanban, ShieldAlert, Zap, LineChart, Settings, HelpCircle, Calendar, MessageCircle, UserCheck, CheckSquare, Target, Landmark, FileText } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import SystemBroadcastOverlay from "@/components/workspace/SystemBroadcastOverlay";
+import { Logo } from "@/components/Logo";
+
+// Match login page branding styles exactly with enhanced readability gradients
+const bcoreStyle: React.CSSProperties = {
+  fontFamily: "'Cinzel', serif",
+  fontWeight: 700,
+  letterSpacing: "0.18em",
+  background: "linear-gradient(120deg, #3b82f6, #60a5fa, #93c5fd, #60a5fa, #3b82f6)",
+  backgroundSize: "300% 100%",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  backgroundClip: "text",
+  animation: "bcoreGradient 4s ease infinite",
+};
+
+const digitalStyle: React.CSSProperties = {
+  fontFamily: "'Cinzel', serif",
+  fontWeight: 600,
+  letterSpacing: "0.18em",
+  background: "linear-gradient(120deg, #00E5FF, #87ceeb, #e0f7fa, #87ceeb, #00E5FF)",
+  backgroundSize: "300% 100%",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  backgroundClip: "text",
+  animation: "digitalGradient 4s ease infinite 0.5s",
+};
 
 export default function WorkspaceLayout({
   children,
@@ -52,11 +78,12 @@ export default function WorkspaceLayout({
       <SystemBroadcastOverlay />
       {/* Left Sidebar */}
       <aside className="w-64 bg-[#0a0a0a] border-r border-zinc-800/80 flex flex-col h-screen">
-        <div className="p-6 border-b border-zinc-800/80 flex items-center space-x-3">
-          <div className="w-8 h-8 rounded bg-gradient-to-tr from-[#00E5FF] to-cyan-800 flex items-center justify-center font-mono font-bold text-lg text-black shadow-[0_0_10px_rgba(0,229,255,0.3)]">
-            7
+        <div className="p-5 border-b border-zinc-800/80 flex items-center space-x-3">
+          <Logo className="w-12 h-12 shrink-0" animate={true} />
+          <div className="flex flex-col leading-[1.1]">
+            <span className="text-[13px] uppercase font-bold" style={bcoreStyle}>B-Core</span>
+            <span className="text-[13px] uppercase font-semibold" style={digitalStyle}>Digital</span>
           </div>
-          <h1 className="text-sm font-bold tracking-[0.1em] text-white font-mono">B-CORE DIGITAL</h1>
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -87,6 +114,10 @@ export default function WorkspaceLayout({
               <Link href="/workspace/analytics" className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-colors border ${isActive("/workspace/analytics") ? "bg-[#111111] text-amber-400 border-amber-400/20" : "text-zinc-400 hover:bg-[#111111] hover:text-amber-400 border-transparent"}`}>
                 <LineChart className="w-4 h-4" />
                 <span>Business Analytics</span>
+              </Link>
+              <Link href="/workspace/proposals" className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-colors border ${isActive("/workspace/proposals") ? "bg-[#111111] text-amber-400 border-amber-400/20" : "text-zinc-400 hover:bg-[#111111] hover:text-amber-400 border-transparent"}`}>
+                <FileText className="w-4 h-4" />
+                <span>Proposal Builder</span>
               </Link>
               <Link href="/workspace/marketing" className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-colors border ${isActive("/workspace/marketing") ? "bg-[#111111] text-pink-400 border-pink-400/20" : "text-zinc-400 hover:bg-[#111111] hover:text-pink-400 border-transparent"}`}>
                 <LineChart className="w-4 h-4" />
