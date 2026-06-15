@@ -83,6 +83,7 @@ class Task(Base):
     industry_meta = Column(JSON, default=dict)
     priority = Column(String(50), default="Medium")
     due_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     project = relationship("Project", back_populates="tasks")

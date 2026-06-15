@@ -104,6 +104,12 @@ try:
             col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
             connection.execute(text(f"ALTER TABLE projects ADD COLUMN timeline {col_type}"))
             print("Successfully added timeline column to projects table.")
+
+        # 4. Tasks created_at migration
+        existing_cols_tasks = [c['name'] for c in inspector.get_columns('tasks')]
+        if 'created_at' not in existing_cols_tasks:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+            print("Successfully added created_at column to tasks table.")
 except Exception as e:
     print(f"Error during migration: {e}")
 
