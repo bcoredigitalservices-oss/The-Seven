@@ -76,43 +76,33 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # Database migration: add target_type and target_id to meeting_schedules, and is_code_snippet to direct_messages
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 try:
+    inspector = inspect(engine)
     with engine.begin() as connection:
         # 1. Meeting schedules migration
-        result = connection.execute(text(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='meeting_schedules' AND column_name='target_type'"
-        ))
-        if not result.fetchone():
+        existing_cols_ms = [c['name'] for c in inspector.get_columns('meeting_schedules')]
+        if 'target_type' not in existing_cols_ms:
             connection.execute(text("ALTER TABLE meeting_schedules ADD COLUMN target_type VARCHAR(50) DEFAULT 'all'"))
             connection.execute(text("ALTER TABLE meeting_schedules ADD COLUMN target_id VARCHAR(255)"))
             print("Successfully migrated meeting_schedules table - added target_type and target_id.")
 
         # 2. Direct messages migration
-        result_dm = connection.execute(text(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='direct_messages' AND column_name='is_code_snippet'"
-        ))
-        if not result_dm.fetchone():
+        existing_cols_dm = [c['name'] for c in inspector.get_columns('direct_messages')]
+        if 'is_code_snippet' not in existing_cols_dm:
             connection.execute(text("ALTER TABLE direct_messages ADD COLUMN is_code_snippet BOOLEAN DEFAULT FALSE"))
             print("Successfully migrated direct_messages table - added is_code_snippet.")
 
         # 3. Project pipeline and timeline migration
-        result_pipeline = connection.execute(text(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='projects' AND column_name='pipeline'"
-        ))
-        if not result_pipeline.fetchone():
-            connection.execute(text("ALTER TABLE projects ADD COLUMN pipeline JSON"))
+        existing_cols_projects = [c['name'] for c in inspector.get_columns('projects')]
+        if 'pipeline' not in existing_cols_projects:
+            col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
+            connection.execute(text(f"ALTER TABLE projects ADD COLUMN pipeline {col_type}"))
             print("Successfully added pipeline column to projects table.")
 
-        result_timeline = connection.execute(text(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='projects' AND column_name='timeline'"
-        ))
-        if not result_timeline.fetchone():
-            connection.execute(text("ALTER TABLE projects ADD COLUMN timeline JSON"))
+        if 'timeline' not in existing_cols_projects:
+            col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
+            connection.execute(text(f"ALTER TABLE projects ADD COLUMN timeline {col_type}"))
             print("Successfully added timeline column to projects table.")
 except Exception as e:
     print(f"Error during migration: {e}")
