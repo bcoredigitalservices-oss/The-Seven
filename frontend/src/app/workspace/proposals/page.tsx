@@ -587,7 +587,7 @@ export default function ProposalBuilderPage() {
     <div className="flex-1 flex flex-col min-h-0 space-y-6">
       
       {/* Print-specific style layout block */}
-      <style jsx="true" global="true">{`
+      <style jsx global>{`
         @media print {
           /* Hide all default layout wrappers */
           body, html, main, #__next, .min-h-screen, .flex-1 {
