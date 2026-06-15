@@ -40,7 +40,7 @@ const SPECIALIZATIONS = {
 type DepartmentKeys = keyof typeof DEPARTMENT_STRUCTURE;
 
 export default function AdminUserManagement() {
-  const { adminUsers, fetchAdminUsers, updateUserMetadata, projects, fetchProjects, updateProject } = useSevenStore();
+  const { adminUsers, fetchAdminUsers, createUser, updateUserMetadata, projects, fetchProjects, updateProject } = useSevenStore();
   const [activeTab, setActiveTab] = useState<"internal" | "client">("internal");
   const [editingEntity, setEditingEntity] = useState<UserProfile | any | null>(null);
   const [managingPermissionsFor, setManagingPermissionsFor] = useState<UserProfile | any | null>(null);
@@ -200,10 +200,41 @@ export default function AdminUserManagement() {
     const targetId = editingEntity?.user_id || managingPermissionsFor?.user_id;
     
     if (isCreating) {
-      setTimeout(() => {
-        setIsSubmitting(false);
+      let role_tier = 3;
+      if (formData.user_type === "CEO") role_tier = 1;
+      else if (formData.user_type === "Department Lead") role_tier = 2;
+
+      const payload = activeTab === "internal" ? {
+        full_name: formData.full_name,
+        email: formData.email,
+        role_tier: role_tier,
+        department_id: formData.user_type === "CEO" ? "EXEC" : formData.department,
+        department: formData.user_type === "CEO" ? null : formData.department,
+        sub_department: formData.user_type === "CEO" ? null : formData.sub_department,
+        functional_role: formData.user_type === "CEO" ? null : formData.functional_role,
+        specialization: formData.user_type === "CEO" ? null : formData.specialization,
+        seniority_level: formData.user_type === "CEO" ? null : formData.seniority_level,
+        user_type: formData.user_type || "Employee",
+        current_status: "Active"
+      } : {
+        full_name: formData.full_name,
+        email: formData.email,
+        role_tier: 4,
+        department_id: null,
+        department: null,
+        sub_department: null,
+        functional_role: "Client",
+        specialization: null,
+        seniority_level: null,
+        user_type: "Client",
+        current_status: "Active"
+      };
+
+      const success = await createUser(payload);
+      setIsSubmitting(false);
+      if (success) {
         handleClose();
-      }, 1000);
+      }
     } else if (targetId) {
       // Mock passing form data or blocked statuses
       const payload = managingPermissionsFor ? {

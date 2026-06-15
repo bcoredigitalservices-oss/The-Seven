@@ -177,6 +177,7 @@ interface SevenStore {
   // Tier 1 Admin User Management
   adminUsers: UserProfile[];
   fetchAdminUsers: () => Promise<void>;
+  createUser: (userData: any) => Promise<boolean>;
   updateUserMetadata: (userId: string, updateData: any) => Promise<boolean>;
   resendInvite: (userId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   projects: Project[];
@@ -760,6 +761,26 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     } catch (e) {
       console.error("Failed to fetch admin users", e);
     }
+  },
+  createUser: async (userData: any) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(userData)
+      });
+      if (res.ok) {
+        get().fetchAdminUsers();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to create user", e);
+    }
+    return false;
   },
   updateUserMetadata: async (userId: string, updateData: any) => {
     try {
