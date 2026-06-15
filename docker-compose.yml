@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: traveluser
+      POSTGRES_PASSWORD: travelpassword
+      POSTGRES_DB: seven
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
   backend:
     build:
       context: ./backend
@@ -8,7 +20,7 @@ services:
     ports:
       - "8006:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/seven.db
+      - DATABASE_URL=postgresql://traveluser:travelpassword@db:5432/seven
       - FRONTEND_URL=https://seven.bcore.digital
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587
@@ -18,6 +30,8 @@ services:
     volumes:
       - backend_data:/app/data
     restart: unless-stopped
+    depends_on:
+      - db
 
   frontend:
     build:
@@ -33,3 +47,4 @@ services:
 
 volumes:
   backend_data:
+  pgdata:
