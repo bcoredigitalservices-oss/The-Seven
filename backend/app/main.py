@@ -29,6 +29,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         user = crud.get_user_by_email(db, email)
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
+        if user.current_status == "Blocked":
+            raise HTTPException(status_code=403, detail="User access is blocked")
         return user
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
@@ -294,6 +296,8 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, login_data.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.current_status == "Blocked":
+        raise HTTPException(status_code=403, detail="Your account has been blocked by an administrator")
     
     if not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect password")
@@ -1272,6 +1276,21 @@ def update_admin_user_metadata(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+@app.delete("/api/v1/admin/users/{target_user_id}")
+def delete_admin_user(
+    target_user_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role_tier != 1:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if target_user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    success = crud.delete_user(db, target_user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "success", "message": "User permanently deleted"}
 
 # Group Endpoints
 @app.get("/api/groups", response_model=List[schemas.GroupResponse])

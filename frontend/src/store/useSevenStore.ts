@@ -178,6 +178,7 @@ interface SevenStore {
   adminUsers: UserProfile[];
   fetchAdminUsers: () => Promise<void>;
   createUser: (userData: any) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
   updateUserMetadata: (userId: string, updateData: any) => Promise<boolean>;
   resendInvite: (userId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   projects: Project[];
@@ -779,6 +780,24 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       }
     } catch (e) {
       console.error("Failed to create user", e);
+    }
+    return false;
+  },
+  deleteUser: async (userId: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`/api/v1/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        get().fetchAdminUsers();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to delete user", e);
     }
     return false;
   },

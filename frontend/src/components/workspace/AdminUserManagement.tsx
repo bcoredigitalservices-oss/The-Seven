@@ -40,7 +40,7 @@ const SPECIALIZATIONS = {
 type DepartmentKeys = keyof typeof DEPARTMENT_STRUCTURE;
 
 export default function AdminUserManagement() {
-  const { adminUsers, fetchAdminUsers, createUser, updateUserMetadata, projects, fetchProjects, updateProject } = useSevenStore();
+  const { adminUsers, fetchAdminUsers, createUser, deleteUser, updateUserMetadata, projects, fetchProjects, updateProject } = useSevenStore();
   const [activeTab, setActiveTab] = useState<"internal" | "client">("internal");
   const [editingEntity, setEditingEntity] = useState<UserProfile | any | null>(null);
   const [managingPermissionsFor, setManagingPermissionsFor] = useState<UserProfile | any | null>(null);
@@ -267,9 +267,12 @@ export default function AdminUserManagement() {
     }
   };
 
-  const handleDelete = () => {
-    if (confirm("Are you sure you want to permanently delete this record?")) {
-      handleClose();
+  const handleDelete = async () => {
+    if (editingEntity?.user_id && confirm("Are you sure you want to permanently delete this record?")) {
+      const success = await deleteUser(editingEntity.user_id);
+      if (success) {
+        handleClose();
+      }
     }
   };
 

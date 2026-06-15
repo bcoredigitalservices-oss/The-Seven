@@ -63,6 +63,7 @@ class UserAdminUpdate(BaseModel):
     specialization: Optional[str] = None
     seniority_level: Optional[str] = None
     user_type: Optional[str] = None
+    current_status: Optional[str] = None
 
 class UserCreate(UserBase):
     pass

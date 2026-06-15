@@ -61,6 +61,8 @@ def update_user_metadata(db: Session, user_id: str, metadata: schemas.UserAdminU
             db_user.seniority_level = metadata.seniority_level
         if metadata.user_type is not None:
             db_user.user_type = metadata.user_type
+        if metadata.current_status is not None:
+            db_user.current_status = metadata.current_status
         db.commit()
         db.refresh(db_user)
     return db_user
@@ -273,6 +275,14 @@ def delete_user_capability(db: Session, user_id: str, capability_id: str):
     ).first()
     if uc:
         db.delete(uc)
+        db.commit()
+        return True
+    return False
+
+def delete_user(db: Session, user_id: str) -> bool:
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    if user:
+        db.delete(user)
         db.commit()
         return True
     return False
