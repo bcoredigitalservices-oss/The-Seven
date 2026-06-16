@@ -80,6 +80,10 @@ export default function CommunicationPage() {
     fetchAllUsers();
     fetchGroups();
     fetchAllDMs();
+    // Request browser notification permission
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, [simulatedUser]);
 
   const fetchGroups = async () => {
@@ -209,14 +213,33 @@ export default function CommunicationPage() {
     fetchMessages().finally(() => setIsLoadingMessages(false));
   }, [selectedUser, selectedGroup, activeTab]);
 
-  // Polling for live chat updates
+  // Polling for live chat updates + new message notifications
+  const prevMessageCountRef = useRef(messages.length);
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchMessages();
-      fetchAllDMs();
+    const interval = setInterval(async () => {
+      const prevCount = prevMessageCountRef.current;
+      await fetchMessages();
+      await fetchAllDMs();
+      const newMsgs = messages.filter(m => m.sender_id !== activeUser?.user_id);
+      // Trigger browser notification for new incoming messages
+      if (
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        messages.length > prevCount
+      ) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg && lastMsg.sender_id !== activeUser?.user_id) {
+          new Notification(`💬 New message from ${lastMsg.sender_name || "Someone"}`, {
+            body: "You have a new message in B-Core Digital workspace.",
+            icon: "/icons/icon-192x192.png"
+          });
+        }
+      }
+      prevMessageCountRef.current = messages.length;
     }, 4000);
     return () => clearInterval(interval);
-  }, [selectedUser, selectedGroup, activeTab]);
+  }, [selectedUser, selectedGroup, activeTab, messages, activeUser]);
 
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -464,6 +487,10 @@ export default function CommunicationPage() {
                           dm.receiver_id === activeUser?.user_id && 
                           !dm.is_read
                   ).length;
+                  // Online/offline from current_status field
+                  const isOnline = user.current_status === "Active" || user.current_status === "Deep Work";
+                  const isBlocked = user.current_status === "Blocked";
+                  const statusColor = isBlocked ? "bg-[#ff1744]" : isOnline ? "bg-emerald-400" : "bg-zinc-600";
                   return (
                     <button
                       key={user.user_id}
@@ -483,6 +510,10 @@ export default function CommunicationPage() {
                           : "bg-zinc-800 border-zinc-700 text-zinc-300"
                       }`}>
                         {user.full_name.substring(0, 2).toUpperCase()}
+                        {/* Online/Offline Status Dot */}
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0e0e0e] shadow ${statusColor} ${isBlocked ? "animate-pulse" : ""}`}
+                          title={isBlocked ? "Blocked" : isOnline ? "Online" : "Offline"}
+                        />
                         {unreadCount > 0 && (
                           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-[#0e0e0e] shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-ping" />
                         )}
@@ -497,8 +528,15 @@ export default function CommunicationPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-[9px] text-zinc-500 uppercase truncate">
-                          {isUserCEO ? "CEO / Executive" : `${user.department || "General"} // Tier ${user.role_tier}`}
+                        <p className="text-[9px] uppercase truncate flex items-center space-x-1">
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
+                          <span className={isOnline ? "text-emerald-500" : isBlocked ? "text-[#ff1744]" : "text-zinc-600"}>
+                            {isBlocked ? "Blocked" : isOnline ? "Online" : "Offline"}
+                          </span>
+                          <span className="text-zinc-700">•</span>
+                          <span className="text-zinc-500">
+                            {isUserCEO ? "CEO" : `${user.department || "General"} T${user.role_tier}`}
+                          </span>
                         </p>
                       </div>
                     </button>
@@ -590,9 +628,32 @@ export default function CommunicationPage() {
                   )}
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-                  <span className="text-[9px] font-mono text-zinc-400 uppercase">SECURE LINK ONLINE</span>
+                <div className="flex items-center space-x-3">
+                  {activeTab === "dm" ? (
+                    <>
+                      {(() => {
+                        const isOnline = selectedUser.current_status === "Active" || selectedUser.current_status === "Deep Work";
+                        const isBlocked = selectedUser.current_status === "Blocked";
+                        return (
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-2 h-2 rounded-full ${
+                              isBlocked ? "bg-[#ff1744] animate-pulse" : isOnline ? "bg-emerald-400" : "bg-zinc-500"
+                            }`} />
+                            <span className={`text-[9px] font-mono uppercase font-bold ${
+                              isBlocked ? "text-[#ff1744]" : isOnline ? "text-emerald-400" : "text-zinc-500"
+                            }`}>
+                              {isBlocked ? "ACCOUNT BLOCKED" : isOnline ? "ONLINE" : "OFFLINE"}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                      <span className="text-[9px] font-mono text-zinc-400 uppercase">SECURE LINK ONLINE</span>
+                    </>
+                  )}
                 </div>
               </div>
 

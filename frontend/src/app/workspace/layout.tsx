@@ -48,6 +48,10 @@ export default function WorkspaceLayout({
   useEffect(() => {
     fetchUser();
     connectWebSocket();
+    // Request browser notification permission for beacon/event alerts
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
     return () => disconnectWebSocket();
   }, [fetchUser, connectWebSocket, disconnectWebSocket]);
 

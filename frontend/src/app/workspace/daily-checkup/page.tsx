@@ -63,6 +63,12 @@ export default function DailyLoggingPage() {
     fetchLogs();
     fetchCustomLogs();
     fetchAllUsers();
+    // Real-time polling for CEO audit view
+    const interval = setInterval(() => {
+      fetchCustomLogs();
+      fetchLogs();
+    }, 8000);
+    return () => clearInterval(interval);
   }, [simulatedUser, fetchCustomLogs]);
 
   useEffect(() => {

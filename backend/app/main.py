@@ -2655,6 +2655,9 @@ def get_custom_logs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # If CEO and no simulate filter — return ALL custom logs for the audit view
+    if current_user.role_tier == 1 and not simulate_user_id:
+        return crud.get_all_employee_custom_logs(db)
     user_to_check = current_user
     if simulate_user_id and current_user.role_tier == 1:
         simulated = db.query(models.User).filter(models.User.user_id == simulate_user_id).first()

@@ -27,6 +27,13 @@ export default function SystemBroadcastOverlay() {
     if (activityLogs.length > 0) {
       const latestLog = activityLogs[0];
       
+      // Helper: fire native browser notification
+      const fireNativeNotification = (title: string, body: string) => {
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          new Notification(title, { body, icon: "/icons/icon-192x192.png" });
+        }
+      };
+
       // 1. System Broadcast
       if (latestLog.type === "system_broadcast") {
         if (latestLog.target_capability && latestLog.target_capability !== "") {
@@ -39,6 +46,7 @@ export default function SystemBroadcastOverlay() {
           variant: "system",
           target_capability: latestLog.target_capability
         });
+        fireNativeNotification("⚠️ System Alert — B-Core Digital", latestLog.message);
       }
       
       // 2. Blocker Beacon
@@ -49,6 +57,10 @@ export default function SystemBroadcastOverlay() {
           variant: "danger",
           sender: latestLog.sender_name || "Developer"
         });
+        fireNativeNotification(
+          `🚨 BLOCKER BEACON — ${latestLog.sender_name || "Team Member"}`,
+          latestLog.message
+        );
       }
       
       // 3. New Reminder
@@ -60,6 +72,7 @@ export default function SystemBroadcastOverlay() {
             variant: "warning",
             sender: "Coordinator"
           });
+          fireNativeNotification("🔔 Reminder — B-Core Digital", latestLog.message);
         }
       }
       
@@ -72,6 +85,10 @@ export default function SystemBroadcastOverlay() {
             variant: "info",
             sender: latestLog.creator_name || "Scheduler"
           });
+          fireNativeNotification(
+            `📅 Meeting Scheduled — ${latestLog.creator_name || "B-Core"}`,
+            latestLog.message
+          );
         }
       }
     }

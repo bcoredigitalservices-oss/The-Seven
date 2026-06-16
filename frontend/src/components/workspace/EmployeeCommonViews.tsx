@@ -1,9 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSevenStore, Task } from "@/store/useSevenStore";
-import { CheckSquare, Clock, AlertOctagon, Calendar, Bell, Send, CheckCircle2, AlertTriangle, ExternalLink, MessageSquare, UserPlus, Check, FolderKanban } from "lucide-react";
+import { CheckSquare, Clock, AlertOctagon, Calendar, Bell, Send, CheckCircle2, AlertTriangle, ExternalLink, MessageSquare, UserPlus, Check, FolderKanban, AlarmClock, Zap } from "lucide-react";
 import WorkLogger from "./WorkLogger";
+
+// Deadline urgency helper
+function getDeadlineUrgency(due_date?: string | null): { label: string; hoursLeft: number; isCritical: boolean; isPast: boolean } {
+  if (!due_date) return { label: "", hoursLeft: Infinity, isCritical: false, isPast: false };
+  const now = new Date();
+  const due = new Date(due_date);
+  const hoursLeft = (due.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const isPast = hoursLeft < 0;
+  const isCritical = hoursLeft >= 0 && hoursLeft <= 7;
+  const absh = Math.abs(hoursLeft);
+  let label = "";
+  if (isPast) {
+    label = `OVERDUE by ${absh >= 24 ? `${Math.floor(absh / 24)}d ` : ""}${Math.floor(absh % 24)}h`;
+  } else if (isCritical) {
+    label = `CRITICAL — ${Math.floor(hoursLeft)}h ${Math.floor((hoursLeft % 1) * 60)}m left`;
+  } else if (hoursLeft < 48) {
+    label = `Due in ${Math.floor(hoursLeft)}h`;
+  } else {
+    label = `Due ${due.toLocaleDateString()} ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return { label, hoursLeft, isCritical, isPast };
+}
 
 interface EmployeeTasksViewProps {
   assignedTasks: Task[];
@@ -19,6 +41,24 @@ export function EmployeeTasksView({ assignedTasks }: EmployeeTasksViewProps) {
       setSelectedTask(assignedTasks[0]);
     }
   }, [assignedTasks, selectedTask]);
+
+  // Track work log counts per task
+  const [taskLogCounts, setTaskLogCounts] = useState<Record<string, number>>({});
+  const hasFetchedCounts = useRef(false);
+
+  useEffect(() => {
+    if (assignedTasks.length === 0 || hasFetchedCounts.current) return;
+    hasFetchedCounts.current = true;
+    const token = localStorage.getItem("seven_token");
+    fetch("/api/v1/worklogs", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then((logs: any[]) => {
+        const counts: Record<string, number> = {};
+        logs.forEach(l => { counts[l.task_id] = (counts[l.task_id] || 0) + 1; });
+        setTaskLogCounts(counts);
+      })
+      .catch(() => {});
+  }, [assignedTasks]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -40,6 +80,8 @@ export function EmployeeTasksView({ assignedTasks }: EmployeeTasksViewProps) {
           ) : (
             assignedTasks.map((task) => {
               const isSelected = selectedTask?.task_id === task.task_id;
+              const urgency = getDeadlineUrgency(task.due_date);
+              const logCount = taskLogCounts[task.task_id] || 0;
               return (
                 <button
                   key={task.task_id}
@@ -47,13 +89,17 @@ export function EmployeeTasksView({ assignedTasks }: EmployeeTasksViewProps) {
                   className={`w-full text-left p-4 rounded-xl border font-mono transition-all flex items-start justify-between ${
                     isSelected
                       ? "bg-[#141414] border-[#00E5FF]/30 text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.05)]"
+                      : urgency.isCritical
+                      ? "bg-red-950/10 border-red-800/30 text-red-200 hover:bg-red-950/20"
+                      : urgency.isPast
+                      ? "bg-red-950/20 border-red-700/40 text-red-300"
                       : "bg-zinc-950/40 border-zinc-900 text-zinc-400 hover:bg-[#111] hover:text-white"
                   }`}
                 >
                   <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex items-center space-x-2.5">
+                    <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
                       <span
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-2 h-2 rounded-full shrink-0 ${
                           task.status === "Done" || task.status === "Deployed"
                             ? "bg-emerald-400"
                             : task.status === "In Progress"
@@ -64,20 +110,39 @@ export function EmployeeTasksView({ assignedTasks }: EmployeeTasksViewProps) {
                         }`}
                       />
                       <span className="text-xs font-bold text-white truncate">{task.title}</span>
+                      {(urgency.isCritical || urgency.isPast) && (
+                        <span className="flex items-center space-x-1 px-1.5 py-0.5 bg-red-500 rounded text-[8px] font-bold text-white uppercase animate-pulse">
+                          <AlarmClock className="w-2.5 h-2.5" />
+                          <span>{urgency.isPast ? "OVERDUE" : "CRITICAL"}</span>
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-zinc-500 leading-relaxed truncate max-w-xl">
                       {task.description || "No specific details logged."}
                     </p>
-                    {task.due_date && (
-                      <span className="text-[9px] text-zinc-600 block mt-1 uppercase">
-                        DEADLINE: {new Date(task.due_date).toLocaleDateString()}
+                    {urgency.label && (
+                      <span className={`text-[9px] block mt-1 uppercase font-bold ${
+                        urgency.isPast ? "text-red-500" : urgency.isCritical ? "text-red-400 animate-pulse" : "text-zinc-550"
+                      }`}>
+                        {urgency.label}
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-col items-end space-y-1 ml-4 shrink-0">
-                    <span className="text-[9px] uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 tracking-wider">
+                  <div className="flex flex-col items-end space-y-1.5 ml-4 shrink-0">
+                    <span className={`text-[9px] uppercase px-2 py-0.5 rounded border tracking-wider ${
+                      task.status === "Done" || task.status === "Deployed" ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-400" :
+                      task.status === "In Progress" ? "bg-cyan-950/20 border-cyan-800/40 text-cyan-400" :
+                      task.status === "Blocked" ? "bg-red-950/20 border-red-800/40 text-red-400" :
+                      "bg-zinc-900 border-zinc-800 text-zinc-400"
+                    }`}>
                       {task.status}
                     </span>
+                    {logCount > 0 && (
+                      <span className="text-[8px] flex items-center space-x-0.5 text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{logCount} log{logCount !== 1 ? 's' : ''}</span>
+                      </span>
+                    )}
                   </div>
                 </button>
               );
@@ -427,6 +492,9 @@ export function EmployeeCustomLogsView() {
 
   useEffect(() => {
     fetchCustomLogs();
+    // Poll every 10s for real-time updates (CEO audit view too)
+    const interval = setInterval(fetchCustomLogs, 10000);
+    return () => clearInterval(interval);
   }, [fetchCustomLogs, activeUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {

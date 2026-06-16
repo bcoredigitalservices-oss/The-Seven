@@ -583,6 +583,11 @@ def get_employee_custom_logs(db: Session, user_id: str):
     return db.query(models.EmployeeCustomLog).filter(models.EmployeeCustomLog.user_id == user_id).order_by(models.EmployeeCustomLog.created_at.desc()).all()
 
 
+def get_all_employee_custom_logs(db: Session):
+    """CEO audit: return all custom logs across all users, ordered by latest first."""
+    return db.query(models.EmployeeCustomLog).order_by(models.EmployeeCustomLog.created_at.desc()).all()
+
+
 def create_project_remark(db: Session, project_id: str, user_id: str, remark_data: schemas.ProjectRemarkCreate):
     import uuid
     db_remark = models.ProjectRemark(

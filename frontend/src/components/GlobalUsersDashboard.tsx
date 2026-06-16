@@ -1,20 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSevenStore, UserProfile } from "@/store/useSevenStore";
 import { 
   Users, Activity, User, Briefcase, Star, Clock, 
   Target, TrendingUp, TrendingDown, ExternalLink, ShieldAlert,
-  Search, X, CheckCircle
+  Search, X, CheckCircle, MessageSquarePlus, FileText, AlarmClock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 export default function GlobalUsersDashboard() {
-  const { allUsers, fetchAllUsers, setSimulatedUser } = useSevenStore();
+  const { allUsers, fetchAllUsers, setSimulatedUser, projects, fetchProjects, tasks, fetchTasks } = useSevenStore();
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
+
+  // Client-specific state
+  const [clientRemarks, setClientRemarks] = useState<any[]>([]);
+  const [clientEnquiries, setClientEnquiries] = useState<any[]>([]);
+  const [userWorklogs, setUserWorklogs] = useState<any[]>([]);
+  const [userCustomLogs, setUserCustomLogs] = useState<any[]>([]);
+  const [loadingClientData, setLoadingClientData] = useState(false);
 
   const handleOpenPersonnelDashboard = (user: UserProfile) => {
     setSimulatedUser(user);
@@ -23,7 +30,65 @@ export default function GlobalUsersDashboard() {
 
   useEffect(() => {
     fetchAllUsers();
-  }, [fetchAllUsers]);
+    fetchProjects();
+    fetchTasks();
+  }, [fetchAllUsers, fetchProjects, fetchTasks]);
+
+  const fetchUserSpecificData = useCallback(async (user: UserProfile) => {
+    const token = localStorage.getItem("seven_token");
+    setLoadingClientData(true);
+
+    try {
+      if (user.user_type === "Client" || user.role_tier === 4) {
+        // Find the project owned by this client
+        const clientProject = (projects || []).find(p => p.client_id === user.user_id);
+        if (clientProject) {
+          const [remarksRes] = await Promise.all([
+            fetch(`/api/v1/projects/${clientProject.project_id}/remarks`, { headers: { Authorization: `Bearer ${token}` } })
+          ]);
+          if (remarksRes.ok) setClientRemarks(await remarksRes.json());
+          else setClientRemarks([]);
+        } else {
+          setClientRemarks([]);
+        }
+        // Get enquiry tasks for this client's projects
+        const projectIds = (projects || []).filter(p => p.client_id === user.user_id).map(p => p.project_id);
+        const enquiries = (tasks || []).filter(t =>
+          projectIds.includes(t.project_id || "") && (t.title || "").startsWith("[Client Enquiry]")
+        );
+        setClientEnquiries(enquiries);
+        setUserWorklogs([]);
+        setUserCustomLogs([]);
+      } else {
+        // Employee - fetch their work logs and custom logs
+        const [wlRes, clRes] = await Promise.all([
+          fetch(`/api/v1/worklogs?simulate_user_id=${user.user_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/v1/custom-logs?simulate_user_id=${user.user_id}`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        setUserWorklogs(wlRes.ok ? await wlRes.json() : []);
+        setUserCustomLogs(clRes.ok ? await clRes.json() : []);
+        setClientRemarks([]);
+        setClientEnquiries([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch user-specific data", err);
+    } finally {
+      setLoadingClientData(false);
+    }
+  }, [projects, tasks]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserSpecificData(selectedUser);
+      const interval = setInterval(() => fetchUserSpecificData(selectedUser), 8000);
+      return () => clearInterval(interval);
+    } else {
+      setClientRemarks([]);
+      setClientEnquiries([]);
+      setUserWorklogs([]);
+      setUserCustomLogs([]);
+    }
+  }, [selectedUser, fetchUserSpecificData]);
 
   const filteredUsers = allUsers.filter(u => 
     u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -289,17 +354,137 @@ export default function GlobalUsersDashboard() {
                                   : "Operator is active and processing tasks optimally."}
                               </p>
                             </div>
-                            <button className="mt-4 px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-xs font-mono text-zinc-300 transition-colors">
-                              View Full Telemetry Trace
+                            <button
+                              onClick={() => handleOpenPersonnelDashboard(selectedUser)}
+                              className="mt-4 px-6 py-2 bg-[#00e5ff]/5 hover:bg-[#00e5ff]/10 border border-[#00e5ff]/20 rounded text-xs font-mono text-[#00e5ff] transition-colors"
+                            >
+                              Open Personnel Dashboard →
                             </button>
                           </div>
                         </div>
-
                       </div>
                     </>
                   );
                 })()}
-                
+
+                {/* Client-specific: Project Remarks & Enquiries */}
+                {(selectedUser.user_type === "Client" || selectedUser.role_tier === 4) && (
+                  <div className="space-y-6 pt-4 border-t border-zinc-800">
+                    <h3 className="text-xs font-bold text-zinc-300 font-mono uppercase tracking-wider flex items-center">
+                      <MessageSquarePlus className="w-4 h-4 mr-2 text-purple-400" />
+                      Client Correspondence Data
+                      {loadingClientData && <span className="ml-2 text-[9px] text-zinc-550 animate-pulse">SYNCING...</span>}
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Project Remarks */}
+                      <div className="bg-[#0f0f13] border border-purple-900/30 rounded-lg p-4 flex flex-col h-[250px]">
+                        <h4 className="text-[10px] font-bold text-purple-400 font-mono uppercase tracking-widest mb-3 flex items-center space-x-1">
+                          <MessageSquarePlus className="w-3 h-3" />
+                          <span>Status Remarks ({clientRemarks.length})</span>
+                        </h4>
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                          {clientRemarks.length === 0 ? (
+                            <div className="text-zinc-600 text-[10px] font-mono text-center py-8">No remarks posted yet.</div>
+                          ) : (
+                            clientRemarks.map((r: any) => (
+                              <div key={r.remark_id} className="p-2.5 bg-zinc-950 border border-zinc-800 rounded text-[10px] font-mono space-y-1">
+                                <div className="flex justify-between text-zinc-500">
+                                  <span className="font-bold text-purple-400">{r.sender?.full_name || r.user_name || "User"}</span>
+                                  <span>{new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <p className="text-zinc-300 leading-relaxed break-words">{r.content}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Task Enquiries */}
+                      <div className="bg-[#0f0f13] border border-amber-900/30 rounded-lg p-4 flex flex-col h-[250px]">
+                        <h4 className="text-[10px] font-bold text-amber-400 font-mono uppercase tracking-widest mb-3 flex items-center space-x-1">
+                          <FileText className="w-3 h-3" />
+                          <span>Task Enquiries ({clientEnquiries.length})</span>
+                        </h4>
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                          {clientEnquiries.length === 0 ? (
+                            <div className="text-zinc-600 text-[10px] font-mono text-center py-8">No task requests submitted.</div>
+                          ) : (
+                            clientEnquiries.map((task: any) => (
+                              <div key={task.task_id} className="p-2.5 bg-zinc-950 border border-zinc-800 rounded text-[10px] font-mono space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-white">{task.title.replace("[Client Enquiry] ", "")}</span>
+                                  <span className={`text-[8px] px-1.5 py-0.5 rounded border ${
+                                    task.status === "Done" ? "text-emerald-400 border-emerald-800/40 bg-emerald-950/20" :
+                                    task.status === "In Progress" ? "text-cyan-400 border-cyan-800/40 bg-cyan-950/20" :
+                                    "text-zinc-500 border-zinc-800 bg-zinc-900"
+                                  }`}>{task.status}</span>
+                                </div>
+                                {task.description && <p className="text-zinc-500 line-clamp-2">{task.description}</p>}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Employee-specific: Work logs & Custom logs */}
+                {selectedUser.user_type !== "Client" && selectedUser.role_tier !== 4 && (
+                  <div className="space-y-6 pt-4 border-t border-zinc-800">
+                    <h3 className="text-xs font-bold text-zinc-300 font-mono uppercase tracking-wider flex items-center">
+                      <Clock className="w-4 h-4 mr-2 text-[#00e5ff]" />
+                      Work & Activity Logs
+                      {loadingClientData && <span className="ml-2 text-[9px] text-zinc-550 animate-pulse">SYNCING...</span>}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Work Logs */}
+                      <div className="bg-[#0f0f13] border border-zinc-800 rounded-lg p-4 h-[220px] flex flex-col">
+                        <h4 className="text-[10px] font-bold text-[#00e5ff] font-mono uppercase tracking-widest mb-3 flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>Time Logs ({userWorklogs.length})</span>
+                        </h4>
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                          {userWorklogs.length === 0 ? (
+                            <div className="text-zinc-600 text-[10px] font-mono text-center py-6">No time logs recorded.</div>
+                          ) : (
+                            userWorklogs.slice(0, 10).map((log: any) => (
+                              <div key={log.log_id} className="p-2 bg-zinc-950 border border-zinc-900 rounded text-[10px] font-mono flex justify-between items-start">
+                                <div>
+                                  <p className="text-zinc-300 line-clamp-1">{log.description || log.task_title || "Work session"}</p>
+                                  <p className="text-zinc-600 text-[9px] mt-0.5">{new Date(log.date_logged || log.created_at).toLocaleDateString()}</p>
+                                </div>
+                                <span className="text-emerald-400 font-bold ml-2 shrink-0">{log.hours_spent}h</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Custom Logs */}
+                      <div className="bg-[#0f0f13] border border-zinc-800 rounded-lg p-4 h-[220px] flex flex-col">
+                        <h4 className="text-[10px] font-bold text-amber-400 font-mono uppercase tracking-widest mb-3 flex items-center space-x-1">
+                          <FileText className="w-3 h-3" />
+                          <span>Custom Logs ({userCustomLogs.length})</span>
+                        </h4>
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                          {userCustomLogs.length === 0 ? (
+                            <div className="text-zinc-600 text-[10px] font-mono text-center py-6">No custom logs recorded.</div>
+                          ) : (
+                            userCustomLogs.slice(0, 10).map((log: any) => (
+                              <div key={log.log_id} className="p-2 bg-zinc-950 border border-zinc-900 rounded text-[10px] font-mono space-y-0.5">
+                                <p className="text-zinc-300 line-clamp-2 break-words">{log.log_content}</p>
+                                <p className="text-zinc-600 text-[9px]">{new Date(log.created_at).toLocaleString()}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </motion.div>
           ) : (
