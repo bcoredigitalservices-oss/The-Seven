@@ -31,6 +31,12 @@ def create_user(db: Session, user: schemas.UserCreate):
         role_tier=user.role_tier,
         department_id=user.department_id,
         current_status=user.current_status,
+        department=user.department,
+        sub_department=user.sub_department,
+        functional_role=user.functional_role,
+        specialization=user.specialization,
+        seniority_level=user.seniority_level,
+        user_type=user.user_type,
         hashed_password=hash_password(uuid.uuid4().hex)
     )
     db.add(db_user)
@@ -528,5 +534,30 @@ def get_proposals(db: Session):
 
 def get_proposal(db: Session, doc_id: str):
     return db.query(models.Proposal).filter(models.Proposal.doc_id == doc_id).first()
+
+def delete_project(db: Session, project_id: str) -> bool:
+    db_project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if db_project:
+        db.delete(db_project)
+        db.commit()
+        return True
+    return False
+
+
+def create_employee_custom_log(db: Session, log_data: schemas.EmployeeCustomLogCreate, user_id: str):
+    import uuid
+    db_log = models.EmployeeCustomLog(
+        log_id=str(uuid.uuid4()),
+        user_id=user_id,
+        log_content=log_data.log_content
+    )
+    db.add(db_log)
+    db.commit()
+    db.refresh(db_log)
+    return db_log
+
+
+def get_employee_custom_logs(db: Session, user_id: str):
+    return db.query(models.EmployeeCustomLog).filter(models.EmployeeCustomLog.user_id == user_id).order_by(models.EmployeeCustomLog.created_at.desc()).all()
 
 

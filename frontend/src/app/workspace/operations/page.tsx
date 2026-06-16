@@ -1016,12 +1016,28 @@ export default function OperationsPage() {
                       />
                     </div>
 
-                    <button 
-                      type="submit" 
-                      className="w-full bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/45 text-emerald-400 py-2 rounded font-bold uppercase transition-all duration-300 tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.08)]"
-                    >
-                      Update Configuration
-                    </button>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-900/60">
+                      <button 
+                        type="submit" 
+                        className="bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/45 text-emerald-400 py-2 rounded font-bold uppercase transition-all duration-300 tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.08)]"
+                      >
+                        Update
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to permanently purge project "${selectedProject.title}"?`)) {
+                            const ok = await deleteProject(selectedProject.project_id);
+                            if (ok) {
+                              setSelectedProject(null);
+                            }
+                          }
+                        }}
+                        className="bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/45 text-rose-400 py-2 rounded font-bold uppercase transition-all duration-300 tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.08)]"
+                      >
+                        Purge Record
+                      </button>
+                    </div>
                   </form>
                 </div>
               ) : (

@@ -325,3 +325,15 @@ class Proposal(Base):
     sections = Column(JSON, nullable=True)
     services = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmployeeCustomLog(Base):
+    __tablename__ = "employee_custom_logs"
+
+    log_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    log_content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")

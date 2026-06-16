@@ -4,14 +4,14 @@ import React, { useState } from "react";
 import { Task } from "@/store/useSevenStore";
 import { Paintbrush, Image, Palette, CheckSquare, Clock, Copy, ExternalLink } from "lucide-react";
 import WorkLogger from "./WorkLogger";
-import { EmployeeTasksView, EmployeeNotificationsView } from "./EmployeeCommonViews";
+import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView } from "./EmployeeCommonViews";
 
 interface CreativeDashboardViewProps {
   assignedTasks: Task[];
 }
 
 export default function CreativeDashboardView({ assignedTasks }: CreativeDashboardViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications">("hub");
+  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs">("hub");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     assignedTasks.length > 0 ? assignedTasks[0] : null
   );
@@ -95,6 +95,16 @@ export default function CreativeDashboardView({ assignedTasks }: CreativeDashboa
           }`}
         >
           NOTIFICATIONS & EVENTS
+        </button>
+        <button
+          onClick={() => setActiveSubTab("custom-logs")}
+          className={`pb-1 transition-all ${
+            activeSubTab === "custom-logs"
+              ? "text-[#00E5FF] border-b border-[#00E5FF] font-bold"
+              : "text-zinc-550 hover:text-white"
+          }`}
+        >
+          DAILY CUSTOM LOGS
         </button>
       </div>
 
@@ -247,6 +257,10 @@ export default function CreativeDashboardView({ assignedTasks }: CreativeDashboa
 
       {activeSubTab === "notifications" && (
         <EmployeeNotificationsView />
+      )}
+
+      {activeSubTab === "custom-logs" && (
+        <EmployeeCustomLogsView />
       )}
 
     </div>

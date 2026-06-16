@@ -224,7 +224,7 @@ export default function WorkspaceLayout({
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-zinc-200 truncate">{activeUser?.full_name}</p>
               <p className="text-[9px] font-mono text-zinc-550 uppercase truncate">
-                {activeUser?.user_type === "Client" ? "Client Node" : `Tier ${activeUser?.role_tier}`} // {activeUser?.current_status}
+                {activeUser?.user_type === "Client" ? "Client Node" : `Tier ${activeUser?.role_tier}`} &bull; {activeUser?.current_status}
               </p>
             </div>
           </div>

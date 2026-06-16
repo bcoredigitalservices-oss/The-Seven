@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Task, useSevenStore } from "@/store/useSevenStore";
 import { Megaphone, TrendingUp, BarChart4, ClipboardList, Clock, Plus, Trash2, AlertCircle } from "lucide-react";
 import WorkLogger from "./WorkLogger";
-import { EmployeeTasksView, EmployeeNotificationsView } from "./EmployeeCommonViews";
+import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView } from "./EmployeeCommonViews";
 
 interface MarketingDashboardViewProps {
   assignedTasks: Task[];
@@ -14,7 +14,7 @@ export default function MarketingDashboardView({ assignedTasks }: MarketingDashb
   const { simulatedUser, userProfile } = useSevenStore();
   const activeUser = simulatedUser || userProfile;
 
-  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications">("hub");
+  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs">("hub");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     assignedTasks.length > 0 ? assignedTasks[0] : null
   );
@@ -156,6 +156,16 @@ export default function MarketingDashboardView({ assignedTasks }: MarketingDashb
           }`}
         >
           NOTIFICATIONS & EVENTS
+        </button>
+        <button
+          onClick={() => setActiveSubTab("custom-logs")}
+          className={`pb-1 transition-all ${
+            activeSubTab === "custom-logs"
+              ? "text-[#00E5FF] border-b border-[#00E5FF] font-bold"
+              : "text-zinc-555 hover:text-white"
+          }`}
+        >
+          DAILY CUSTOM LOGS
         </button>
       </div>
 
@@ -320,6 +330,10 @@ export default function MarketingDashboardView({ assignedTasks }: MarketingDashb
 
       {activeSubTab === "notifications" && (
         <EmployeeNotificationsView />
+      )}
+
+      {activeSubTab === "custom-logs" && (
+        <EmployeeCustomLogsView />
       )}
 
     </div>

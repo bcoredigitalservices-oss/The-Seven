@@ -372,3 +372,17 @@ class ProposalResponse(ProposalCreate):
 
     class Config:
         from_attributes = True
+
+
+class EmployeeCustomLogCreate(BaseModel):
+    log_content: str
+
+
+class EmployeeCustomLogResponse(BaseModel):
+    log_id: str
+    user_id: str
+    log_content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -415,3 +415,117 @@ export function EmployeeNotificationsView() {
     </div>
   );
 }
+
+
+export function EmployeeCustomLogsView() {
+  const { customLogs, fetchCustomLogs, submitCustomLog, userProfile, simulatedUser } = useSevenStore();
+  const [content, setContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const activeUser = simulatedUser || userProfile;
+
+  useEffect(() => {
+    fetchCustomLogs();
+  }, [fetchCustomLogs, activeUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const ok = await submitCustomLog(content);
+    setIsSubmitting(false);
+
+    if (ok) {
+      setSuccess(true);
+      setContent("");
+      fetchCustomLogs();
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      {/* Submit Custom Log Form */}
+      <div className="lg:col-span-1 bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4 h-fit">
+        <div className="border-b border-zinc-850 pb-3">
+          <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+            <Clock className="w-4 h-4 text-[#00E5FF]" />
+            <span>SUBMIT CUSTOM LOG</span>
+          </h3>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 font-mono text-xs">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-zinc-550 uppercase">Log Entry Content</label>
+            <textarea
+              placeholder="Record a custom activity log or update..."
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={4}
+              className="w-full bg-zinc-950 border border-zinc-850 rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#00E5FF]/40 resize-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full py-2.5 rounded-lg border text-xs font-bold font-mono tracking-wider transition-all flex items-center justify-center space-x-2 ${
+              success
+                ? "bg-emerald-950/20 border-emerald-500 text-emerald-400"
+                : "bg-[#00E5FF]/10 border-[#00E5FF]/20 hover:bg-[#00E5FF]/20 text-[#00E5FF] hover:border-[#00E5FF]/40 cursor-pointer"
+            }`}
+          >
+            {isSubmitting ? (
+              <span className="animate-pulse">RECORDING LOG...</span>
+            ) : success ? (
+              <span>LOG RECORDED</span>
+            ) : (
+              <span>SUBMIT ENTRY</span>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Custom Log List */}
+      <div className="lg:col-span-2 bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col space-y-4">
+        <div className="flex items-center justify-between border-b border-zinc-855 pb-3">
+          <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2">
+            <Clock className="w-4 h-4 text-[#00E5FF]" />
+            <span>MY CUSTOM LOG ARCHIVES</span>
+          </h3>
+          <span className="text-[10px] font-mono text-zinc-550">
+            {simulatedUser ? "SIMULATED USER LOGS" : "PERSONAL UPDATES"}
+          </span>
+        </div>
+
+        <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
+          {customLogs.length === 0 ? (
+            <div className="text-center py-16 text-xs font-mono text-zinc-650">
+              No custom log entries recorded.
+            </div>
+          ) : (
+            customLogs.map((log) => (
+              <div
+                key={log.log_id}
+                className="p-4 bg-zinc-950/40 border border-zinc-900 rounded-xl space-y-2 font-mono text-xs"
+              >
+                <div className="flex justify-between items-center text-[10px] text-zinc-500 border-b border-zinc-900 pb-1.5">
+                  <span>LOG ENTRY: #{log.log_id.substring(0, 8)}</span>
+                  <span>{new Date(log.created_at).toLocaleString()}</span>
+                </div>
+                <p className="text-zinc-300 leading-relaxed break-words whitespace-pre-wrap">
+                  {log.log_content}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}

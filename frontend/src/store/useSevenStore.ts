@@ -77,6 +77,13 @@ export interface WorkLog {
   description: string | null;
 }
 
+export interface EmployeeCustomLog {
+  log_id: string;
+  user_id: string;
+  log_content: string;
+  created_at: string;
+}
+
 export interface Group {
   group_id: string;
   name: string;
@@ -174,6 +181,11 @@ interface SevenStore {
   fetchWorkLogs: () => Promise<void>;
   submitWorkLog: (taskId: string, hours: number, description: string) => Promise<boolean>;
 
+  // Custom Logs State
+  customLogs: EmployeeCustomLog[];
+  fetchCustomLogs: () => Promise<void>;
+  submitCustomLog: (content: string) => Promise<boolean>;
+
   // Tier 1 Admin User Management
   adminUsers: UserProfile[];
   fetchAdminUsers: () => Promise<void>;
@@ -264,17 +276,32 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const token = localStorage.getItem("seven_token");
-      const storedUser = localStorage.getItem("seven_user");
-      
-      if (!token || !storedUser) {
+      if (!token) {
         set({ userProfile: null, isLoading: false, currentUserCapabilities: [] });
         return;
       }
       
-      set({ userProfile: JSON.parse(storedUser), isLoading: false });
+      const res = await fetch("/api/users/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (!res.ok) {
+        get().signOut();
+        return;
+      }
+      
+      const user = await res.json();
+      localStorage.setItem("seven_user", JSON.stringify(user));
+      set({ userProfile: user, isLoading: false });
       get().fetchCurrentUserCapabilities();
     } catch (err: any) {
-      set({ error: err.message, isLoading: false, userProfile: null, currentUserCapabilities: [] });
+      const storedUser = localStorage.getItem("seven_user");
+      if (storedUser) {
+        set({ userProfile: JSON.parse(storedUser), isLoading: false });
+        get().fetchCurrentUserCapabilities();
+      } else {
+        set({ error: err.message, isLoading: false, userProfile: null, currentUserCapabilities: [] });
+      }
     }
   },
 
@@ -305,6 +332,24 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       get().addActivityLog(data);
       if (data && data.type === "new_lead_arrived") {
         get().fetchLeads();
+      }
+      if (data && data.type === "project_deleted") {
+        set((state) => ({
+          projects: state.projects.filter((p) => p.project_id !== data.project_id)
+        }));
+      }
+      if (data && data.type === "user_status_changed") {
+        if (data.user_id === userProfile?.user_id && data.status === "Blocked") {
+          get().signOut();
+          // Force page reload to clear memory state and redirect to login
+          window.location.href = "/login";
+          return;
+        }
+        set((state) => ({
+          allUsers: state.allUsers.map((u) => 
+            u.user_id === data.user_id ? { ...u, current_status: data.status } : u
+          )
+        }));
       }
       if (data && data.type === "project_updated" && data.project) {
         const updatedProj = data.project;
@@ -744,6 +789,52 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       }
     } catch (e) {
       console.error("Failed to submit work log", e);
+    }
+    return false;
+  },
+
+  customLogs: [],
+  fetchCustomLogs: async () => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `/api/v1/custom-logs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/custom-logs";
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ customLogs: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch custom logs", e);
+    }
+  },
+  submitCustomLog: async (content: string) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const simulatedUser = get().simulatedUser;
+      const url = simulatedUser 
+        ? `/api/v1/custom-logs?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/custom-logs";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          log_content: content
+        })
+      });
+      if (res.ok) {
+        get().fetchCustomLogs();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to submit custom log", e);
     }
     return false;
   },

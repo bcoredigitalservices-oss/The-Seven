@@ -6,14 +6,14 @@ import { Briefcase, Landmark, ClipboardCheck, PhoneCall, Users, Plus, Check } fr
 import LeadTriageBoard from "./LeadTriageBoard";
 import QuotationTrigger from "./QuotationTrigger";
 import WorkLogger from "./WorkLogger";
-import { EmployeeTasksView, EmployeeNotificationsView } from "./EmployeeCommonViews";
+import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView } from "./EmployeeCommonViews";
 
 interface CorporateDashboardViewProps {
   assignedTasks: Task[];
 }
 
 export default function CorporateDashboardView({ assignedTasks }: CorporateDashboardViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications">("hub");
+  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs">("hub");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     assignedTasks.length > 0 ? assignedTasks[0] : null
   );
@@ -88,6 +88,16 @@ export default function CorporateDashboardView({ assignedTasks }: CorporateDashb
           }`}
         >
           NOTIFICATIONS & EVENTS
+        </button>
+        <button
+          onClick={() => setActiveSubTab("custom-logs")}
+          className={`pb-1 transition-all ${
+            activeSubTab === "custom-logs"
+              ? "text-[#00E5FF] border-b border-[#00E5FF] font-bold"
+              : "text-zinc-555 hover:text-white"
+          }`}
+        >
+          DAILY CUSTOM LOGS
         </button>
       </div>
 
@@ -238,6 +248,10 @@ export default function CorporateDashboardView({ assignedTasks }: CorporateDashb
 
       {activeSubTab === "notifications" && (
         <EmployeeNotificationsView />
+      )}
+
+      {activeSubTab === "custom-logs" && (
+        <EmployeeCustomLogsView />
       )}
 
     </div>

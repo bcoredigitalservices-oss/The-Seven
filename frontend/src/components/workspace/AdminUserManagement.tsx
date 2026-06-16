@@ -40,7 +40,7 @@ const SPECIALIZATIONS = {
 type DepartmentKeys = keyof typeof DEPARTMENT_STRUCTURE;
 
 export default function AdminUserManagement() {
-  const { adminUsers, fetchAdminUsers, createUser, deleteUser, updateUserMetadata, projects, fetchProjects, updateProject } = useSevenStore();
+  const { adminUsers, fetchAdminUsers, createUser, deleteUser, updateUserMetadata, projects, fetchProjects, updateProject, userProfile, simulatedUser } = useSevenStore();
   const [activeTab, setActiveTab] = useState<"internal" | "client">("internal");
   const [editingEntity, setEditingEntity] = useState<UserProfile | any | null>(null);
   const [managingPermissionsFor, setManagingPermissionsFor] = useState<UserProfile | any | null>(null);
@@ -53,6 +53,18 @@ export default function AdminUserManagement() {
     fetchAdminUsers();
     fetchProjects();
   }, [fetchAdminUsers, fetchProjects]);
+
+  const activeUser = simulatedUser || userProfile;
+
+  if (activeUser?.role_tier !== 1) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-zinc-500 font-mono py-20">
+        <Shield className="w-12 h-12 text-[#ff1744] mb-4" />
+        <h2 className="text-xl font-bold text-zinc-200 uppercase tracking-widest">RESTRICTED ACCESS</h2>
+        <p className="text-xs mt-2 text-zinc-500">Only Tier 1 Executive Administrators are permitted to access this sector.</p>
+      </div>
+    );
+  }
 
   // Handle department changes specifically for cascading UI
   const handleDepartmentChange = (newDept: string) => {

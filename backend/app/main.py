@@ -137,6 +137,17 @@ class ConnectionManager:
                 del self.active_connections[user_id]
         logger.info(f"User {user_id} disconnected.")
 
+    async def disconnect_user(self, user_id: str):
+        if user_id in self.active_connections:
+            websockets = self.active_connections[user_id]
+            for ws in list(websockets):
+                try:
+                    await ws.close(code=1008)
+                except Exception:
+                    pass
+            del self.active_connections[user_id]
+        logger.info(f"User {user_id} disconnected by admin force policy.")
+
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         await websocket.send_json(message)
 
@@ -161,6 +172,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, db: Session = D
     if not user:
         # Default or fallback connection
         logger.warning(f"WebSocket attempt by unknown user: {user_id}")
+    elif user.current_status == "Blocked":
+        logger.warning(f"WebSocket connection rejected for blocked user: {user_id}")
+        await websocket.accept()
+        await websocket.close(code=1008)
+        return
     
     await manager.connect(websocket, user_id)
     try:
@@ -351,6 +367,10 @@ async def update_status(user_id: str, status_data: schemas.UserUpdateStatus, db:
         "user_id": user_id,
         "status": status_data.current_status
     })
+    
+    if status_data.current_status == "Blocked":
+        await manager.disconnect_user(user_id)
+        
     return user
 
 # Project Endpoints
@@ -375,6 +395,19 @@ async def update_project(project_id: str, project_data: schemas.ProjectUpdate, d
         "project": project_schema.dict()
     })
     return db_project
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str, db: Session = Depends(get_db)):
+    success = crud.delete_project(db, project_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    # Broadcast to all clients
+    await manager.broadcast({
+        "type": "project_deleted",
+        "project_id": project_id
+    })
+    return {"status": "success", "message": "Project deleted successfully"}
 
 
 # Task Endpoints
@@ -649,6 +682,10 @@ def get_admin_dashboard(db: Session = Depends(get_db)):
         active_blockers=active_blockers,
         all_tasks=all_tasks
     )
+
+@app.get("/api/users/me", response_model=schemas.UserResponse)
+def get_current_user_profile(current_user: models.User = Depends(get_current_user)):
+    return current_user
 
 # Capability Endpoints
 @app.get("/api/capabilities", response_model=List[schemas.CapabilityResponse])
@@ -1264,7 +1301,7 @@ def get_admin_users(
     return crud.get_users(db)
 
 @app.put("/api/v1/admin/users/{target_user_id}", response_model=schemas.UserResponse)
-def update_admin_user_metadata(
+async def update_admin_user_metadata(
     target_user_id: str,
     metadata: schemas.UserAdminUpdate,
     db: Session = Depends(get_db),
@@ -1275,10 +1312,12 @@ def update_admin_user_metadata(
     user = crud.update_user_metadata(db, target_user_id, metadata)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.current_status == "Blocked":
+        await manager.disconnect_user(target_user_id)
     return user
 
 @app.delete("/api/v1/admin/users/{target_user_id}")
-def delete_admin_user(
+async def delete_admin_user(
     target_user_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -1287,6 +1326,7 @@ def delete_admin_user(
         raise HTTPException(status_code=403, detail="Forbidden")
     if target_user_id == current_user.user_id:
         raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    await manager.disconnect_user(target_user_id)
     success = crud.delete_user(db, target_user_id)
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
@@ -2475,6 +2515,35 @@ def get_proposal_by_ref(doc_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to fetch proposal {doc_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/custom-logs", response_model=schemas.EmployeeCustomLogResponse)
+def create_custom_log(
+    log_data: schemas.EmployeeCustomLogCreate,
+    simulate_user_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    user_to_check = current_user
+    if simulate_user_id and current_user.role_tier == 1:
+        simulated = db.query(models.User).filter(models.User.user_id == simulate_user_id).first()
+        if simulated:
+            user_to_check = simulated
+    return crud.create_employee_custom_log(db, log_data, user_to_check.user_id)
+
+
+@app.get("/api/v1/custom-logs", response_model=List[schemas.EmployeeCustomLogResponse])
+def get_custom_logs(
+    simulate_user_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    user_to_check = current_user
+    if simulate_user_id and current_user.role_tier == 1:
+        simulated = db.query(models.User).filter(models.User.user_id == simulate_user_id).first()
+        if simulated:
+            user_to_check = simulated
+    return crud.get_employee_custom_logs(db, user_to_check.user_id)
 
 
 
