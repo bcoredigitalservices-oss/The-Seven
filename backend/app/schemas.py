@@ -98,6 +98,7 @@ class ProjectBase(BaseModel):
     department: Optional[str] = None
     pipeline: Optional[list] = None
     timeline: Optional[list] = None
+    client_ids: Optional[List[str]] = None
 
 class ProjectCreate(ProjectBase):
     client_id: Optional[str] = None
@@ -106,6 +107,7 @@ class ProjectUpdate(BaseModel):
     title: Optional[str] = None
     status: Optional[str] = None
     client_id: Optional[str] = None
+    client_ids: Optional[List[str]] = None
     deadline: Optional[datetime] = None
     worker_type: Optional[str] = None
     assigned_user_id: Optional[str] = None
@@ -129,6 +131,9 @@ class TaskBase(BaseModel):
     status: str = "Backlog"  # 'Backlog', 'Assigned', 'In Progress', 'Blocked', 'Review', 'QA', 'Deployed', 'Done'
     project_id: str
     assigned_user_id: Optional[str] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[str] = "Medium"
+    industry_meta: Optional[dict] = None
 
 class TaskCreate(BaseModel):
     title: str
@@ -136,9 +141,21 @@ class TaskCreate(BaseModel):
     status: str = "Backlog"
     project_id: str
     assigned_user_id: Optional[str] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[str] = "Medium"
+    industry_meta: Optional[dict] = None
 
 class TaskUpdateStatus(BaseModel):
     status: str
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    assigned_user_id: Optional[str] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[str] = None
+    industry_meta: Optional[dict] = None
 
 class TaskResponse(TaskBase):
     task_id: str

@@ -20,6 +20,7 @@ export interface Project {
   title: string;
   status: string;
   client_id?: string | null;
+  client_ids?: string[] | null;
   created_at: string;
   deadline?: string | null;
   worker_type?: string | null;
@@ -210,9 +211,18 @@ interface SevenStore {
   // Task Management State
   tasks: Task[];
   fetchTasks: () => Promise<void>;
-  createTask: (taskData: { title: string; description: string; project_id: string; assigned_user_id?: string | null; due_date?: string | null }) => Promise<boolean>;
+  createTask: (taskData: { 
+    title: string; 
+    description: string; 
+    project_id: string; 
+    assigned_user_id?: string | null; 
+    due_date?: string | null;
+    priority?: string | null;
+    industry_meta?: any | null;
+  }) => Promise<boolean>;
   updateTaskStatus: (taskId: string, status: string) => Promise<boolean>;
   assignTask: (taskId: string, userId: string) => Promise<boolean>;
+  updateTaskDeadline: (taskId: string, due_date: string | null) => Promise<boolean>;
 
   // Group Management State
   groups: Group[];
@@ -1027,7 +1037,15 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
       console.error("Failed to fetch tasks", e);
     }
   },
-  createTask: async (taskData: { title: string; description: string; project_id: string; assigned_user_id?: string | null; due_date?: string | null }) => {
+  createTask: async (taskData: { 
+    title: string; 
+    description: string; 
+    project_id: string; 
+    assigned_user_id?: string | null; 
+    due_date?: string | null;
+    priority?: string | null;
+    industry_meta?: any | null;
+  }) => {
     try {
       const token = localStorage.getItem("seven_token");
       const res = await fetch("/api/tasks", {
@@ -1083,12 +1101,35 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
     }
     return false;
   },
+  updateTaskDeadline: async (taskId: string, due_date: string | null) => {
+    try {
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ due_date })
+      });
+      if (res.ok) {
+        get().fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to update task deadline", e);
+    }
+    return false;
+  },
 
   // Group Management Actions
   groups: [],
   fetchGroups: async () => {
     try {
-      const res = await fetch("/api/groups");
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch("/api/groups", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         set({ groups: data });
@@ -1099,9 +1140,13 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   createGroup: async (groupData: { name: string; description?: string; project_id?: string | null }) => {
     try {
+      const token = localStorage.getItem("seven_token");
       const res = await fetch("/api/groups", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(groupData)
       });
       if (res.ok) {
@@ -1116,9 +1161,13 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   updateGroup: async (groupId: string, groupData: { name?: string; description?: string; project_id?: string | null }) => {
     try {
+      const token = localStorage.getItem("seven_token");
       const res = await fetch(`/api/groups/${groupId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(groupData)
       });
       if (res.ok) {
@@ -1132,8 +1181,10 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   deleteGroup: async (groupId: string) => {
     try {
+      const token = localStorage.getItem("seven_token");
       const res = await fetch(`/api/groups/${groupId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
         get().fetchGroups();
@@ -1146,7 +1197,10 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   fetchGroupMembers: async (groupId: string) => {
     try {
-      const res = await fetch(`/api/groups/${groupId}/members`);
+      const token = localStorage.getItem("seven_token");
+      const res = await fetch(`/api/groups/${groupId}/members`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (res.ok) {
         return await res.json();
       }
@@ -1157,9 +1211,13 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   addUserToGroup: async (groupId: string, memberData: { user_id: string; role: string }) => {
     try {
+      const token = localStorage.getItem("seven_token");
       const res = await fetch(`/api/groups/${groupId}/members`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(memberData)
       });
       return res.ok;
@@ -1170,8 +1228,10 @@ export const useSevenStore = create<SevenStore>((set, get) => ({
   },
   removeUserFromGroup: async (groupId: string, userId: string) => {
     try {
+      const token = localStorage.getItem("seven_token");
       const res = await fetch(`/api/groups/${groupId}/members/${userId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
       });
       return res.ok;
     } catch (e) {

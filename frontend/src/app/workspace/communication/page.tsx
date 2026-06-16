@@ -34,6 +34,7 @@ interface ChatMessage {
   group_id?: string;
   content: string;
   is_code_snippet?: boolean;
+  is_read?: boolean;
   created_at: string;
 }
 
@@ -42,6 +43,8 @@ export default function CommunicationPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"dm" | "group">("dm");
+  const [allDMs, setAllDMs] = useState<ChatMessage[]>([]);
+  const [showMobileChat, setShowMobileChat] = useState(false);
   
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
@@ -76,6 +79,7 @@ export default function CommunicationPage() {
   useEffect(() => {
     fetchAllUsers();
     fetchGroups();
+    fetchAllDMs();
   }, [simulatedUser]);
 
   const fetchGroups = async () => {
@@ -90,6 +94,25 @@ export default function CommunicationPage() {
       }
     } catch (err) {
       console.error("Failed to fetch groups", err);
+    }
+  };
+
+  const fetchAllDMs = async () => {
+    const token = localStorage.getItem("seven_token");
+    const simulatedUser = useSevenStore.getState().simulatedUser;
+    try {
+      const url = simulatedUser
+        ? `/api/v1/communication/dms?simulate_user_id=${simulatedUser.user_id}`
+        : "/api/v1/communication/dms";
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAllDMs(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch all DMs", err);
     }
   };
 
@@ -188,7 +211,10 @@ export default function CommunicationPage() {
 
   // Polling for live chat updates
   useEffect(() => {
-    const interval = setInterval(fetchMessages, 4000);
+    const interval = setInterval(() => {
+      fetchMessages();
+      fetchAllDMs();
+    }, 4000);
     return () => clearInterval(interval);
   }, [selectedUser, selectedGroup, activeTab]);
 
@@ -372,7 +398,7 @@ export default function CommunicationPage() {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-6 min-h-0">
         
         {/* Left Side: Users/Groups Roster */}
-        <div className="md:col-span-1 bg-[#0e0e0e]/90 border border-zinc-800/80 rounded-xl p-4 flex flex-col min-h-0">
+        <div className={`md:col-span-1 bg-[#0e0e0e]/90 border border-zinc-800/80 rounded-xl p-4 flex flex-col min-h-0 ${showMobileChat ? "hidden md:flex" : "flex"}`}>
           
           {/* Tab Switcher */}
           <div className="flex border-b border-zinc-800/80 mb-4 bg-zinc-950 p-1 rounded-lg">
@@ -433,26 +459,44 @@ export default function CommunicationPage() {
                 filteredUsers.map((user) => {
                   const isUserCEO = user.role_tier === 1;
                   const isSelected = selectedUser?.user_id === user.user_id;
+                  const unreadCount = allDMs.filter(
+                    dm => dm.sender_id === user.user_id && 
+                          dm.receiver_id === activeUser?.user_id && 
+                          !dm.is_read
+                  ).length;
                   return (
                     <button
                       key={user.user_id}
-                      onClick={() => setSelectedUser(user)}
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setShowMobileChat(true);
+                      }}
                       className={`w-full flex items-center space-x-3 p-2.5 rounded-lg border text-left font-mono transition-all ${
                         isSelected 
                           ? "bg-[#151515] border-[#00E5FF]/20 text-[#00E5FF]" 
                           : "bg-transparent border-transparent text-zinc-400 hover:bg-[#111111] hover:text-white"
                       }`}
                     >
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border ${
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border relative ${
                         isUserCEO 
                           ? "bg-red-950/20 border-red-800/40 text-red-400" 
                           : "bg-zinc-800 border-zinc-700 text-zinc-300"
                       }`}>
                         {user.full_name.substring(0, 2).toUpperCase()}
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-[#0e0e0e] shadow-[0_0_6px_rgba(16,185,129,0.6)] animate-ping" />
+                        )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold truncate">{user.full_name}</p>
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-bold truncate">{user.full_name}</p>
+                          {unreadCount > 0 && (
+                            <span className="bg-emerald-500 text-zinc-950 font-bold text-[8px] h-3.5 min-w-[14px] px-1 rounded-full flex items-center justify-center shadow-[0_0_6px_rgba(16,185,129,0.3)]">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[9px] text-zinc-500 uppercase truncate">
                           {isUserCEO ? "CEO / Executive" : `${user.department || "General"} // Tier ${user.role_tier}`}
                         </p>
@@ -472,7 +516,10 @@ export default function CommunicationPage() {
                   return (
                     <button
                       key={group.group_id}
-                      onClick={() => setSelectedGroup(group)}
+                      onClick={() => {
+                        setSelectedGroup(group);
+                        setShowMobileChat(true);
+                      }}
                       className={`w-full flex items-center space-x-3 p-2.5 rounded-lg border text-left font-mono transition-all ${
                         isSelected 
                           ? "bg-[#151515] border-[#00E5FF]/20 text-[#00E5FF]" 
@@ -498,13 +545,20 @@ export default function CommunicationPage() {
         </div>
 
         {/* Right Side: Chat Window */}
-        <div className="md:col-span-3 bg-[#0e0e0e]/90 border border-zinc-800/80 rounded-xl flex flex-col min-h-0 relative overflow-hidden">
+        <div className={`md:col-span-3 bg-[#0e0e0e]/90 border border-zinc-800/80 rounded-xl flex flex-col min-h-0 relative overflow-hidden ${showMobileChat ? "flex" : "hidden md:flex"}`}>
           
           {((activeTab === "dm" && selectedUser) || (activeTab === "group" && selectedGroup)) ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/10 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileChat(false)}
+                    className="md:hidden px-2 py-1 text-[10px] font-mono font-bold text-zinc-400 hover:text-[#00E5FF] bg-zinc-950 border border-zinc-800 rounded mr-1 transition-colors"
+                  >
+                    &larr; BACK
+                  </button>
                   {activeTab === "dm" ? (
                     <>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${
@@ -586,6 +640,15 @@ export default function CommunicationPage() {
                           <span>
                             {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                           </span>
+                          {isSelf && activeTab === "dm" && (
+                            <span className="font-bold" title={(msg as any).is_read ? "Seen" : "Sent"}>
+                              {(msg as any).is_read ? (
+                                <span className="text-[#00E5FF]">✓✓ SEEN</span>
+                              ) : (
+                                <span className="text-zinc-550">✓ SENT</span>
+                              )}
+                            </span>
+                          )}
                           <span>•</span>
                           <button 
                             onClick={() => toggleRawPayload(msgId)}

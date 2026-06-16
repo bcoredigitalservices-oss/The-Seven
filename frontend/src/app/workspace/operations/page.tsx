@@ -72,6 +72,7 @@ export default function OperationsPage() {
     createTask,
     updateTaskStatus,
     assignTask,
+    updateTaskDeadline,
     activityLogs,
     connectWebSocket,
     disconnectWebSocket
@@ -85,7 +86,7 @@ export default function OperationsPage() {
   const [dashboardProject, setDashboardProject] = useState<Project | null>(null);
   const [editProjectTitle, setEditProjectTitle] = useState("");
   const [editProjectDepartment, setEditProjectDepartment] = useState("");
-  const [editProjectClientId, setEditProjectClientId] = useState("");
+  const [editProjectClientIds, setEditProjectClientIds] = useState<string[]>([]);
   const [editProjectWorkerType, setEditProjectWorkerType] = useState<"Individual" | "Group">("Individual");
   const [editProjectWorkerId, setEditProjectWorkerId] = useState("");
   const [editProjectDeadline, setEditProjectDeadline] = useState("");
@@ -94,7 +95,7 @@ export default function OperationsPage() {
     if (selectedProject) {
       setEditProjectTitle(selectedProject.title);
       setEditProjectDepartment(selectedProject.department || "IT_SAAS");
-      setEditProjectClientId(selectedProject.client_id || "");
+      setEditProjectClientIds(selectedProject.client_ids || (selectedProject.client_id ? [selectedProject.client_id] : []));
       setEditProjectWorkerType((selectedProject.worker_type as any) || "Individual");
       setEditProjectWorkerId(
         selectedProject.worker_type === "Individual" 
@@ -103,7 +104,7 @@ export default function OperationsPage() {
       );
       setEditProjectDeadline(
         selectedProject.deadline 
-          ? new Date(selectedProject.deadline).toISOString().substring(0, 16) 
+          ? toLocalISOString(selectedProject.deadline) 
           : ""
       );
       setProjectError("");
@@ -121,7 +122,8 @@ export default function OperationsPage() {
     const updateData: any = {
       title: editProjectTitle,
       department: editProjectDepartment,
-      client_id: editProjectClientId || "",
+      client_id: editProjectClientIds[0] || null,
+      client_ids: editProjectClientIds,
       worker_type: editProjectWorkerType,
       deadline: editProjectDeadline ? new Date(editProjectDeadline).toISOString() : null,
       assigned_user_id: editProjectWorkerType === "Individual" ? editProjectWorkerId || "" : "",
@@ -141,7 +143,7 @@ export default function OperationsPage() {
   
   // Project Form State
   const [newProjectTitle, setNewProjectTitle] = useState("");
-  const [newProjectClientId, setNewProjectClientId] = useState("");
+  const [newProjectClientIds, setNewProjectClientIds] = useState<string[]>([]);
   const [newProjectWorkerType, setNewProjectWorkerType] = useState<"Individual" | "Group">("Individual");
   const [newProjectWorkerId, setNewProjectWorkerId] = useState("");
   const [newProjectDeadline, setNewProjectDeadline] = useState("");
@@ -163,6 +165,8 @@ export default function OperationsPage() {
   const [newTaskProjectId, setNewTaskProjectId] = useState("");
   const [newTaskUserId, setNewTaskUserId] = useState("");
   const [newTaskDeadline, setNewTaskDeadline] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
+  const [newTaskIndustryMeta, setNewTaskIndustryMeta] = useState("");
   const [taskError, setTaskError] = useState("");
   const [taskSuccess, setTaskSuccess] = useState("");
 
@@ -234,16 +238,17 @@ export default function OperationsPage() {
 
     const ok = await createProject({
       title: newProjectTitle.trim(),
-      client_id: newProjectClientId || null,
-      deadline: newProjectDeadline || null,
+      client_id: newProjectClientIds[0] || null,
+      client_ids: newProjectClientIds,
+      deadline: newProjectDeadline ? new Date(newProjectDeadline).toISOString() : null,
       department: newProjectDepartment || null,
       ...workerParams
-    });
+    } as any);
 
     if (ok) {
       setProjectSuccess(`Project "${newProjectTitle}" initialized successfully.`);
       setNewProjectTitle("");
-      setNewProjectClientId("");
+      setNewProjectClientIds([]);
       setNewProjectWorkerId("");
       setNewProjectDeadline("");
       setNewProjectDepartment("IT_SAAS");
@@ -304,7 +309,9 @@ export default function OperationsPage() {
       description: newTaskDesc.trim(),
       project_id: newTaskProjectId,
       assigned_user_id: newTaskUserId || null,
-      due_date: newTaskDeadline || null
+      due_date: newTaskDeadline ? new Date(newTaskDeadline).toISOString() : null,
+      priority: newTaskPriority,
+      industry_meta: newTaskIndustryMeta ? { remark: newTaskIndustryMeta } : {}
     });
     if (ok) {
       setTaskSuccess(`Task "${newTaskTitle}" deployed successfully.`);
@@ -313,6 +320,8 @@ export default function OperationsPage() {
       setNewTaskProjectId("");
       setNewTaskUserId("");
       setNewTaskDeadline("");
+      setNewTaskPriority("Medium");
+      setNewTaskIndustryMeta("");
     } else {
       setTaskError("Failed to deploy task.");
     }
@@ -381,20 +390,40 @@ export default function OperationsPage() {
 
   const clientUsers = (adminUsers || []).filter(u => u.user_type === "Client" || u.role_tier === 4);
   const employeeUsers = (adminUsers || []).filter(u => u.user_type !== "Client" && u.role_tier !== 4);
+  const recruitableUsers = [...employeeUsers, ...clientUsers];
 
   // Filter staff associated with target project
   const getProjectAssociatedStaff = (projectId: string) => {
     if (!projectId) return employeeUsers;
-    const assignedGroups = groups.filter(g => g.project_id === projectId);
-    if (assignedGroups.length === 0) return [];
-    
+    const proj = projects.find(p => p.project_id === projectId);
+    if (!proj) return employeeUsers;
+
     const memberIds = new Set<string>();
+
+    // 1. If individual worker type is allocated, include that staff member
+    if (proj.worker_type === "Individual" && proj.assigned_user_id) {
+      memberIds.add(proj.assigned_user_id);
+    }
+
+    // 2. If group worker type is allocated, include all members of that group
+    if (proj.worker_type === "Group" && proj.assigned_group_id) {
+      const members = groupMembersCache[proj.assigned_group_id] || [];
+      members.forEach(m => memberIds.add(m.user_id));
+    }
+
+    // 3. Fallback/compatibility check for any groups having group.project_id === projectId
+    const assignedGroups = groups.filter(g => g.project_id === projectId);
     assignedGroups.forEach(g => {
       const members = groupMembersCache[g.group_id] || [];
       members.forEach(m => memberIds.add(m.user_id));
     });
-    
-    return employeeUsers.filter(u => memberIds.has(u.user_id));
+
+    if (memberIds.size > 0) {
+      return employeeUsers.filter(u => memberIds.has(u.user_id));
+    }
+
+    // Default fallback to all employee users so they are not blocked
+    return employeeUsers;
   };
 
   // Helper to format Expiry Period
@@ -435,6 +464,14 @@ export default function OperationsPage() {
       isExpired,
       progressPercent
     };
+  };
+
+  // Helper to convert date to local ISO format YYYY-MM-DDTHH:mm
+  const toLocalISOString = (dateInput: string | Date): string => {
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return "";
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
   };
 
   // Helper to format Task Deadlines
@@ -522,7 +559,7 @@ export default function OperationsPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] bg-[#050505] rounded-lg border border-zinc-800 overflow-hidden font-mono">
+    <div className="flex flex-col min-h-[calc(100vh-120px)] lg:h-[calc(100vh-120px)] bg-[#050505] rounded-lg border border-zinc-800 overflow-y-auto lg:overflow-hidden font-mono">
       
       {/* Fixed Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 border-b border-zinc-800 p-6 bg-[#050505]">
@@ -572,7 +609,7 @@ export default function OperationsPage() {
       </div>
 
       {/* Scrollable middle body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left 2 Cols: Main table lists */}
@@ -825,8 +862,13 @@ export default function OperationsPage() {
                               <td className="py-3 px-2 text-zinc-400">
                                 {taskProj ? taskProj.title : "Unassigned"}
                               </td>
-                              <td className="py-3 px-2 text-zinc-300 font-semibold">
-                                {formatTaskDeadline(t.due_date)}
+                              <td className="py-3 px-2">
+                                <input
+                                  type="datetime-local"
+                                  value={t.due_date ? toLocalISOString(t.due_date) : ""}
+                                  onChange={(e) => updateTaskDeadline(t.task_id, e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                  className="bg-[#0c0c0c] border border-zinc-800 text-zinc-300 text-[11px] px-2 py-1 rounded outline-none w-full max-w-[170px] focus:border-emerald-500"
+                                />
                               </td>
                               <td className="py-3 px-2">
                                 <select
@@ -931,20 +973,34 @@ export default function OperationsPage() {
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Client Lead</label>
-                      <select
-                        value={editProjectClientId}
-                        onChange={(e) => setEditProjectClientId(e.target.value)}
-                        className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]"
-                      >
-                        <option value="">-- NO CLIENT --</option>
-                        {clientUsers.map(client => (
-                          <option key={client.user_id} value={client.user_id}>
-                            {client.full_name} ({client.email})
-                          </option>
-                        ))}
-                      </select>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-zinc-500 uppercase tracking-widest block">Client Leads (Select Multiple)</label>
+                      <div className="max-h-32 overflow-y-auto space-y-1 bg-[#111] border border-zinc-800 rounded p-2 focus-within:border-[#00E5FF]">
+                        {clientUsers.length === 0 ? (
+                          <div className="text-xs text-zinc-600">No clients registered.</div>
+                        ) : (
+                          clientUsers.map(client => {
+                            const isChecked = editProjectClientIds.includes(client.user_id);
+                            return (
+                              <label key={client.user_id} className="flex items-center space-x-2 text-xs text-zinc-300 hover:text-zinc-100 cursor-pointer py-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setEditProjectClientIds([...editProjectClientIds, client.user_id]);
+                                    } else {
+                                      setEditProjectClientIds(editProjectClientIds.filter(id => id !== client.user_id));
+                                    }
+                                  }}
+                                  className="rounded border-zinc-850 text-[#00E5FF] focus:ring-[#00E5FF] bg-zinc-950"
+                                />
+                                <span className="truncate">{client.full_name} ({client.email})</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
 
                     {/* WORKFORCE ALLOCATION TYPE SELECTOR */}
@@ -1076,20 +1132,34 @@ export default function OperationsPage() {
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Client Lead (Optional)</label>
-                      <select
-                        value={newProjectClientId}
-                        onChange={(e) => setNewProjectClientId(e.target.value)}
-                        className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-[#00E5FF]"
-                      >
-                        <option value="">-- UNASSIGNED --</option>
-                        {clientUsers.map(client => (
-                          <option key={client.user_id} value={client.user_id}>
-                            {client.full_name} ({client.email})
-                          </option>
-                        ))}
-                      </select>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-zinc-500 uppercase tracking-widest block">Client Leads (Select Multiple)</label>
+                      <div className="max-h-32 overflow-y-auto space-y-1 bg-[#111] border border-zinc-800 rounded p-2 focus-within:border-[#00E5FF]">
+                        {clientUsers.length === 0 ? (
+                          <div className="text-xs text-zinc-600">No clients registered.</div>
+                        ) : (
+                          clientUsers.map(client => {
+                            const isChecked = newProjectClientIds.includes(client.user_id);
+                            return (
+                              <label key={client.user_id} className="flex items-center space-x-2 text-xs text-zinc-300 hover:text-zinc-100 cursor-pointer py-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setNewProjectClientIds([...newProjectClientIds, client.user_id]);
+                                    } else {
+                                      setNewProjectClientIds(newProjectClientIds.filter(id => id !== client.user_id));
+                                    }
+                                  }}
+                                  className="rounded border-zinc-855 text-[#00E5FF] focus:ring-[#00E5FF] bg-zinc-950"
+                                />
+                                <span className="truncate">{client.full_name} ({client.email})</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
 
                     {/* WORKFORCE ALLOCATION TYPE SELECTOR */}
@@ -1333,7 +1403,7 @@ export default function OperationsPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-900">
-                            {employeeUsers.map((u) => {
+                            {recruitableUsers.map((u) => {
                               const isSelected = !!selectedMemberIds[u.user_id];
                               const isLead = !!leadMemberIds[u.user_id];
                               return (
@@ -1348,7 +1418,9 @@ export default function OperationsPage() {
                                   </td>
                                   <td className="p-2">
                                     <div className="text-zinc-200 font-bold">{u.full_name}</div>
-                                    <div className="text-[9px] text-zinc-500">{u.functional_role || "Staff"}</div>
+                                    <div className="text-[9px] text-zinc-500">
+                                      {u.user_type === "Client" ? "Client Lead" : (u.functional_role || "Staff")}
+                                    </div>
                                   </td>
                                   <td className="p-2 text-center">
                                     <input
@@ -1456,6 +1528,33 @@ export default function OperationsPage() {
                       type="datetime-local"
                       value={newTaskDeadline}
                       onChange={(e) => setNewTaskDeadline(e.target.value)}
+                      className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* TASK PRIORITY SELECTOR */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Priority</label>
+                    <select
+                      value={newTaskPriority}
+                      onChange={(e) => setNewTaskPriority(e.target.value)}
+                      className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-emerald-500"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  {/* INDUSTRY REMARK / METADATA */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-widest">Industry Remarks / Special Instructions</label>
+                    <input
+                      type="text"
+                      value={newTaskIndustryMeta}
+                      onChange={(e) => setNewTaskIndustryMeta(e.target.value)}
+                      placeholder="e.g. Needs SEO optimization, creative assets"
                       className="w-full bg-[#111] border border-zinc-800 text-zinc-200 px-3 py-2 rounded outline-none focus:border-emerald-500"
                     />
                   </div>

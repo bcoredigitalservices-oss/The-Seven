@@ -57,6 +57,7 @@ class Project(Base):
     title = Column(String(255), nullable=False)
     status = Column(String(50), default="Active")
     client_id = Column(String(36), ForeignKey('users.user_id', ondelete='SET NULL'), nullable=True)
+    client_ids = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     deadline = Column(DateTime, nullable=True)
     worker_type = Column(String(50), nullable=True)  # 'Individual', 'Group'
@@ -242,6 +243,7 @@ class DirectMessage(Base):
     receiver_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     content = Column(Text, nullable=False)
     is_code_snippet = Column(Boolean, default=False)
+    is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sender = relationship("User", foreign_keys=[sender_id])

@@ -81,10 +81,19 @@ def get_project(db: Session, project_id: str):
     return db.query(models.Project).filter(models.Project.project_id == project_id).first()
 
 def create_project(db: Session, project: schemas.ProjectCreate):
+    # Synchronize client_id and client_ids
+    c_id = project.client_id
+    c_ids = project.client_ids or []
+    if c_ids and not c_id:
+        c_id = c_ids[0]
+    elif c_id and not c_ids:
+        c_ids = [c_id]
+
     db_project = models.Project(
         title=project.title, 
         status=project.status, 
-        client_id=project.client_id,
+        client_id=c_id,
+        client_ids=c_ids,
         deadline=project.deadline,
         worker_type=project.worker_type,
         assigned_user_id=project.assigned_user_id,
@@ -105,10 +114,20 @@ def update_project(db: Session, project_id: str, project_data: schemas.ProjectUp
             db_project.title = project_data.title
         if project_data.status is not None:
             db_project.status = project_data.status
-        if project_data.client_id is not None:
+        
+        # Synchronize client_id and client_ids on update
+        if project_data.client_ids is not None:
+            db_project.client_ids = project_data.client_ids
+            if project_data.client_ids and len(project_data.client_ids) > 0:
+                db_project.client_id = project_data.client_ids[0]
+            else:
+                db_project.client_id = None
+        elif project_data.client_id is not None:
             db_project.client_id = project_data.client_id if project_data.client_id != "" else None
+            db_project.client_ids = [project_data.client_id] if project_data.client_id != "" else []
         elif "client_id" in project_data.model_fields_set:
             db_project.client_id = project_data.client_id if project_data.client_id != "" else None
+            db_project.client_ids = [project_data.client_id] if project_data.client_id != "" else []
         
         if project_data.deadline is not None:
             db_project.deadline = project_data.deadline
@@ -145,7 +164,10 @@ def create_task(db: Session, task: schemas.TaskCreate):
         description=task.description,
         status=task.status,
         project_id=task.project_id,
-        assigned_user_id=task.assigned_user_id
+        assigned_user_id=task.assigned_user_id,
+        due_date=task.due_date,
+        priority=task.priority or "Medium",
+        industry_meta=task.industry_meta or {}
     )
     db.add(db_task)
     db.commit()

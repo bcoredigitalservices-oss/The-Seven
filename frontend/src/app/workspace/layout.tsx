@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSevenStore } from "@/store/useSevenStore";
-import { LogOut, Activity, Briefcase, Bug, Compass, FolderKanban, ShieldAlert, Zap, LineChart, Settings, HelpCircle, Calendar, MessageCircle, UserCheck, CheckSquare, Target, Landmark, FileText } from "lucide-react";
+import { LogOut, Activity, Briefcase, Bug, Compass, FolderKanban, ShieldAlert, Zap, LineChart, Settings, HelpCircle, Calendar, MessageCircle, UserCheck, CheckSquare, Target, Landmark, FileText, Menu, X } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import SystemBroadcastOverlay from "@/components/workspace/SystemBroadcastOverlay";
@@ -41,6 +41,7 @@ export default function WorkspaceLayout({
   const { userProfile, simulatedUser, setSimulatedUser, fetchUser, signOut, isLoading, connectWebSocket, disconnectWebSocket } = useSevenStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
 
@@ -76,17 +77,32 @@ export default function WorkspaceLayout({
   return (
     <div className="h-screen bg-[#050505] text-zinc-200 flex overflow-hidden">
       <SystemBroadcastOverlay />
+      {/* Sidebar Overlay Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      )}
       {/* Left Sidebar */}
-      <aside className="w-64 bg-[#0a0a0a] border-r border-zinc-800/80 flex flex-col h-screen">
-        <div className="p-5 border-b border-zinc-800/80 flex items-center space-x-3">
-          <Logo className="w-12 h-12 shrink-0" animate={true} />
-          <div className="flex flex-col leading-[1.1]">
-            <span className="text-[13px] uppercase font-bold" style={bcoreStyle}>B-Core</span>
-            <span className="text-[13px] uppercase font-semibold" style={digitalStyle}>Digital</span>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0a0a0a] border-r border-zinc-800/80 flex flex-col h-screen transform transition-transform duration-300 md:translate-x-0 md:static ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="p-5 border-b border-zinc-800/80 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Logo className="w-12 h-12 shrink-0" animate={true} />
+            <div className="flex flex-col leading-[1.1]">
+              <span className="text-[13px] uppercase font-bold" style={bcoreStyle}>B-Core</span>
+              <span className="text-[13px] uppercase font-semibold" style={digitalStyle}>Digital</span>
+            </div>
           </div>
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-900 border border-zinc-800 rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav onClick={() => setIsMobileMenuOpen(false)} className="flex-1 p-4 space-y-2 overflow-y-auto">
           <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-4 px-2">Navigation</p>
           
           {isCEO ? (
@@ -239,10 +255,33 @@ export default function WorkspaceLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden bg-black relative flex flex-col">
+      <main className="flex-1 overflow-hidden bg-black relative flex flex-col min-w-0">
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:2rem_2rem] pointer-events-none opacity-20" />
         
+        {/* Mobile Top Navbar */}
+        <header className="md:hidden flex items-center justify-between bg-[#0a0a0a] border-b border-zinc-800/80 p-4 z-30">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1.5 text-zinc-400 hover:text-white bg-zinc-950 border border-zinc-800 rounded-lg transition-colors"
+              title="Open Navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center space-x-2">
+              <Logo className="w-8 h-8 shrink-0" animate={false} />
+              <div className="flex flex-col leading-[1.1]">
+                <span className="text-[11px] uppercase font-bold text-zinc-200">B-Core</span>
+                <span className="text-[11px] uppercase font-semibold text-zinc-400">Digital</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-[10px] font-mono text-zinc-500 uppercase">
+            {activeUser?.user_type === "Client" ? "Client Node" : `Tier ${activeUser?.role_tier}`}
+          </div>
+        </header>
+
         {simulatedUser && (
           <div className="bg-[#ff1744]/15 border-b border-[#ff1744]/30 px-6 py-3 flex items-center justify-between text-xs font-mono text-[#ff1744] shadow-md z-30">
             <div className="flex items-center space-x-2.5">
@@ -258,7 +297,7 @@ export default function WorkspaceLayout({
           </div>
         )}
 
-        <div className="relative z-10 p-8 flex-1 min-h-0 flex flex-col">
+        <div className="relative z-10 p-4 md:p-8 flex-1 min-h-0 flex flex-col">
           {children}
         </div>
       </main>

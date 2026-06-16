@@ -94,8 +94,11 @@ try:
         if 'is_code_snippet' not in existing_cols_dm:
             connection.execute(text("ALTER TABLE direct_messages ADD COLUMN is_code_snippet BOOLEAN DEFAULT FALSE"))
             print("Successfully migrated direct_messages table - added is_code_snippet.")
+        if 'is_read' not in existing_cols_dm:
+            connection.execute(text("ALTER TABLE direct_messages ADD COLUMN is_read BOOLEAN DEFAULT FALSE"))
+            print("Successfully migrated direct_messages table - added is_read.")
 
-        # 3. Project pipeline and timeline migration
+        # 3. Project pipeline, timeline and client_ids migration
         existing_cols_projects = [c['name'] for c in inspector.get_columns('projects')]
         if 'pipeline' not in existing_cols_projects:
             col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
@@ -106,6 +109,11 @@ try:
             col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
             connection.execute(text(f"ALTER TABLE projects ADD COLUMN timeline {col_type}"))
             print("Successfully added timeline column to projects table.")
+
+        if 'client_ids' not in existing_cols_projects:
+            col_type = "JSON" if connection.dialect.name != "sqlite" else "TEXT"
+            connection.execute(text(f"ALTER TABLE projects ADD COLUMN client_ids {col_type}"))
+            print("Successfully added client_ids column to projects table.")
 
         # 4. Tasks created_at migration
         existing_cols_tasks = [c['name'] for c in inspector.get_columns('tasks')]
@@ -480,6 +488,26 @@ async def assign_task(task_id: str, user_id: str, db: Session = Depends(get_db))
     })
     return task_schema
 
+@app.put("/api/tasks/{task_id}", response_model=schemas.TaskResponse)
+async def update_task(task_id: str, payload: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    db_task = db.query(models.Task).filter(models.Task.task_id == task_id).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    update_data = payload.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_task, key, value)
+        
+    db.commit()
+    db.refresh(db_task)
+    
+    task_schema = schemas.TaskResponse.from_orm(db_task)
+    await manager.broadcast({
+        "type": "task_updated",
+        "task": task_schema.dict()
+    })
+    return task_schema
+
 # Channel & Message Endpoints
 @app.get("/api/tasks/{task_id}/channel", response_model=schemas.ChannelResponse)
 def get_task_channel(task_id: str, db: Session = Depends(get_db)):
@@ -629,8 +657,12 @@ def get_dashboard_overview(
     else:
         # Tier 4: Execution / Employee OR Client
         if user_to_check.user_type == "Client":
+            from sqlalchemy import or_, String
             active_projects = db.query(models.Project).filter(
-                models.Project.client_id == user_to_check.user_id,
+                or_(
+                    models.Project.client_id == user_to_check.user_id,
+                    models.Project.client_ids.cast(String).contains(user_to_check.user_id)
+                ),
                 models.Project.status == "Active"
             ).all()
             project_ids = [p.project_id for p in active_projects]
@@ -1368,8 +1400,12 @@ def get_groups(simulate_user_id: Optional[str] = None, db: Session = Depends(get
     member_group_ids = [g.group_id for g in db.query(models.UserGroup).filter(models.UserGroup.user_id == user_to_check.user_id).all()]
     
     # If client, find groups assigned to projects they own
+    from sqlalchemy import or_, String
     project_group_ids = [p.assigned_group_id for p in db.query(models.Project).filter(
-        models.Project.client_id == user_to_check.user_id,
+        or_(
+            models.Project.client_id == user_to_check.user_id,
+            models.Project.client_ids.cast(String).contains(user_to_check.user_id)
+        ),
         models.Project.assigned_group_id != None
     ).all()]
     
@@ -1378,27 +1414,27 @@ def get_groups(simulate_user_id: Optional[str] = None, db: Session = Depends(get
     return db.query(models.Group).filter(models.Group.group_id.in_(allowed_ids)).all()
 
 @app.post("/api/groups", response_model=schemas.GroupResponse)
-def create_group(group: schemas.GroupCreate, db: Session = Depends(get_db)):
+def create_group(group: schemas.GroupCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     existing = db.query(models.Group).filter(models.Group.name == group.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Group with this name already exists")
     return crud.create_group(db, group)
 
 @app.put("/api/groups/{group_id}", response_model=schemas.GroupResponse)
-def update_group(group_id: str, group_data: schemas.GroupUpdate, db: Session = Depends(get_db)):
+def update_group(group_id: str, group_data: schemas.GroupUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_group = crud.update_group(db, group_id, group_data)
     if not db_group:
         raise HTTPException(status_code=404, detail="Group not found")
     return db_group
 
 @app.delete("/api/groups/{group_id}")
-def delete_group(group_id: str, db: Session = Depends(get_db)):
+def delete_group(group_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if not crud.delete_group(db, group_id):
         raise HTTPException(status_code=404, detail="Group not found")
     return {"status": "success", "message": "Group deleted"}
 
 @app.get("/api/groups/{group_id}/members", response_model=List[schemas.UserGroupResponse])
-def get_group_members(group_id: str, db: Session = Depends(get_db)):
+def get_group_members(group_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     members = crud.get_group_members(db, group_id)
     response = []
     for m in members:
@@ -1414,7 +1450,7 @@ def get_group_members(group_id: str, db: Session = Depends(get_db)):
     return response
 
 @app.post("/api/groups/{group_id}/members", response_model=schemas.UserGroupResponse)
-def add_user_to_group(group_id: str, member: schemas.UserGroupCreate, db: Session = Depends(get_db)):
+def add_user_to_group(group_id: str, member: schemas.UserGroupCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     user = crud.get_user(db, member.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1429,7 +1465,7 @@ def add_user_to_group(group_id: str, member: schemas.UserGroupCreate, db: Sessio
     }
 
 @app.delete("/api/groups/{group_id}/members/{user_id}")
-def remove_user_from_group(group_id: str, user_id: str, db: Session = Depends(get_db)):
+def remove_user_from_group(group_id: str, user_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if not crud.remove_user_from_group(db, group_id, user_id):
         raise HTTPException(status_code=404, detail="Membership not found")
     return {"status": "success", "message": "User removed from group"}
@@ -2106,6 +2142,17 @@ def get_direct_messages(other_user_id: Optional[str] = None, simulate_user_id: O
             (models.DirectMessage.receiver_id == user_to_check.user_id)
         ).order_by(models.DirectMessage.created_at.asc()).all()
     else:
+        # Mark incoming messages from other_user_id as read
+        unread_messages = db.query(models.DirectMessage).filter(
+            models.DirectMessage.sender_id == other_user_id,
+            models.DirectMessage.receiver_id == user_to_check.user_id,
+            models.DirectMessage.is_read == False
+        ).all()
+        if unread_messages:
+            for msg in unread_messages:
+                msg.is_read = True
+            db.commit()
+
         dms = db.query(models.DirectMessage).filter(
             ((models.DirectMessage.sender_id == user_to_check.user_id) & (models.DirectMessage.receiver_id == other_user_id)) |
             ((models.DirectMessage.sender_id == other_user_id) & (models.DirectMessage.receiver_id == user_to_check.user_id))
@@ -2121,6 +2168,7 @@ def get_direct_messages(other_user_id: Optional[str] = None, simulate_user_id: O
             "receiver_name": d.receiver.full_name if d.receiver else "Unknown",
             "content": d.content,
             "is_code_snippet": d.is_code_snippet or False,
+            "is_read": d.is_read or False,
             "created_at": d.created_at.isoformat() if d.created_at else None
         })
     return formatted
@@ -2150,7 +2198,8 @@ def send_direct_message(payload: DirectMessageCreate, simulate_user_id: Optional
         sender_id=user_to_check.user_id,
         receiver_id=payload.receiver_id,
         content=payload.content,
-        is_code_snippet=payload.is_code_snippet or False
+        is_code_snippet=payload.is_code_snippet or False,
+        is_read=False
     )
     db.add(new_dm)
     db.commit()
@@ -2163,8 +2212,28 @@ def send_direct_message(payload: DirectMessageCreate, simulate_user_id: Optional
         "receiver_name": receiver.full_name,
         "content": new_dm.content,
         "is_code_snippet": new_dm.is_code_snippet or False,
+        "is_read": False,
         "created_at": new_dm.created_at.isoformat() if new_dm.created_at else None
     }
+
+@app.post("/api/v1/communication/dms/mark-read/{sender_id}")
+def mark_direct_messages_read(sender_id: str, simulate_user_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    user_to_check = current_user
+    if simulate_user_id and current_user.role_tier == 1:
+        simulated = db.query(models.User).filter(models.User.user_id == simulate_user_id).first()
+        if simulated:
+            user_to_check = simulated
+
+    unread_messages = db.query(models.DirectMessage).filter(
+        models.DirectMessage.sender_id == sender_id,
+        models.DirectMessage.receiver_id == user_to_check.user_id,
+        models.DirectMessage.is_read == False
+    ).all()
+    if unread_messages:
+        for msg in unread_messages:
+            msg.is_read = True
+        db.commit()
+    return {"status": "success", "marked_count": len(unread_messages)}
 
 
 # --------------------------------------------------------------------------------
@@ -2188,9 +2257,13 @@ def get_group_messages(group_id: str, simulate_user_id: Optional[str] = None, db
             models.UserGroup.group_id == group_id,
             models.UserGroup.user_id == user_to_check.user_id
         ).first()
+        from sqlalchemy import or_, String
         is_client = db.query(models.Project).filter(
             models.Project.assigned_group_id == group_id,
-            models.Project.client_id == user_to_check.user_id
+            or_(
+                models.Project.client_id == user_to_check.user_id,
+                models.Project.client_ids.cast(String).contains(user_to_check.user_id)
+            )
         ).first()
         if not is_member and not is_client:
             raise HTTPException(status_code=403, detail="You are not authorized to access this squad group")
@@ -2229,9 +2302,13 @@ def send_group_message(group_id: str, payload: GroupMessageCreate, simulate_user
             models.UserGroup.group_id == group_id,
             models.UserGroup.user_id == user_to_check.user_id
         ).first()
+        from sqlalchemy import or_, String
         is_client = db.query(models.Project).filter(
             models.Project.assigned_group_id == group_id,
-            models.Project.client_id == user_to_check.user_id
+            or_(
+                models.Project.client_id == user_to_check.user_id,
+                models.Project.client_ids.cast(String).contains(user_to_check.user_id)
+            )
         ).first()
         if not is_member and not is_client:
             raise HTTPException(status_code=403, detail="You are not authorized to post to this squad group")

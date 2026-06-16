@@ -12,6 +12,7 @@ export interface Project {
   title: string;
   status: string;
   client_id?: string | null;
+  client_ids?: string[] | null;
 }
 
 export interface Task {
