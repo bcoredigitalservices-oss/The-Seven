@@ -627,27 +627,47 @@ def get_dashboard_overview(
         }
 
     else:
-        # Tier 4: Execution / Employee
-        # Query and return only tasks where assigned_user_id == user_to_check.user_id
-        assigned_tasks = db.query(models.Task).filter(
-            models.Task.assigned_user_id == user_to_check.user_id
-        ).all()
+        # Tier 4: Execution / Employee OR Client
+        if user_to_check.user_type == "Client":
+            active_projects = db.query(models.Project).filter(
+                models.Project.client_id == user_to_check.user_id,
+                models.Project.status == "Active"
+            ).all()
+            project_ids = [p.project_id for p in active_projects]
+            assigned_tasks = db.query(models.Task).filter(
+                models.Task.project_id.in_(project_ids)
+            ).all() if project_ids else []
 
-        # Projects linked to those specific tasks
-        assigned_project_ids = list(set([t.project_id for t in assigned_tasks if t.project_id]))
-        assigned_projects = db.query(models.Project).filter(
-            models.Project.project_id.in_(assigned_project_ids),
-            models.Project.status == "Active"
-        ).all() if assigned_project_ids else []
-
-        return {
-            "active_projects": assigned_projects,
-            "assigned_tasks": assigned_tasks,
-            "department_blockers": [],
-            "system_metrics": {
-                "assigned_tasks_count": len(assigned_tasks)
+            return {
+                "active_projects": active_projects,
+                "assigned_tasks": assigned_tasks,
+                "department_blockers": [],
+                "system_metrics": {
+                    "owned_projects_count": len(active_projects),
+                    "project_tasks_count": len(assigned_tasks)
+                }
             }
-        }
+        else:
+            # Employee
+            assigned_tasks = db.query(models.Task).filter(
+                models.Task.assigned_user_id == user_to_check.user_id
+            ).all()
+
+            # Projects linked to those specific tasks
+            assigned_project_ids = list(set([t.project_id for t in assigned_tasks if t.project_id]))
+            assigned_projects = db.query(models.Project).filter(
+                models.Project.project_id.in_(assigned_project_ids),
+                models.Project.status == "Active"
+            ).all() if assigned_project_ids else []
+
+            return {
+                "active_projects": assigned_projects,
+                "assigned_tasks": assigned_tasks,
+                "department_blockers": [],
+                "system_metrics": {
+                    "assigned_tasks_count": len(assigned_tasks)
+                }
+            }
 
 # Role-Based Dashboards
 @app.get("/api/dashboard/developer/{user_id}", response_model=schemas.DeveloperDashboardResponse)
@@ -2544,6 +2564,34 @@ def get_custom_logs(
         if simulated:
             user_to_check = simulated
     return crud.get_employee_custom_logs(db, user_to_check.user_id)
+
+
+@app.get("/api/v1/projects/{project_id}/remarks", response_model=List[schemas.ProjectRemarkResponse])
+def get_project_remarks(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    remarks = crud.get_project_remarks(db, project_id)
+    response = []
+    for r in remarks:
+        res = schemas.ProjectRemarkResponse.from_orm(r)
+        res.user_name = r.user.full_name if r.user else "Unknown User"
+        response.append(res)
+    return response
+
+
+@app.post("/api/v1/projects/{project_id}/remarks", response_model=schemas.ProjectRemarkResponse)
+def create_project_remark(
+    project_id: str,
+    remark_data: schemas.ProjectRemarkCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    remark = crud.create_project_remark(db, project_id, current_user.user_id, remark_data)
+    res = schemas.ProjectRemarkResponse.from_orm(remark)
+    res.user_name = current_user.full_name
+    return res
 
 
 

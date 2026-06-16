@@ -561,3 +561,21 @@ def get_employee_custom_logs(db: Session, user_id: str):
     return db.query(models.EmployeeCustomLog).filter(models.EmployeeCustomLog.user_id == user_id).order_by(models.EmployeeCustomLog.created_at.desc()).all()
 
 
+def create_project_remark(db: Session, project_id: str, user_id: str, remark_data: schemas.ProjectRemarkCreate):
+    import uuid
+    db_remark = models.ProjectRemark(
+        remark_id=str(uuid.uuid4()),
+        project_id=project_id,
+        user_id=user_id,
+        content=remark_data.content
+    )
+    db.add(db_remark)
+    db.commit()
+    db.refresh(db_remark)
+    return db_remark
+
+
+def get_project_remarks(db: Session, project_id: str):
+    return db.query(models.ProjectRemark).filter(models.ProjectRemark.project_id == project_id).order_by(models.ProjectRemark.created_at.asc()).all()
+
+

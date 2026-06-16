@@ -386,3 +386,19 @@ class EmployeeCustomLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProjectRemarkCreate(BaseModel):
+    content: str
+
+
+class ProjectRemarkResponse(BaseModel):
+    remark_id: str
+    project_id: str
+    user_id: str
+    user_name: Optional[str] = None
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

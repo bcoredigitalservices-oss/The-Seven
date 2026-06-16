@@ -12,7 +12,11 @@ import {
   Send, 
   ShieldCheck, 
   MessageSquare,
-  Users
+  Users,
+  MessageSquarePlus,
+  AlertCircle,
+  Check,
+  FileText
 } from "lucide-react";
 import { encryptMessage, decryptMessage } from "@/utils/crypto";
 
@@ -32,6 +36,18 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
   const [isSending, setIsSending] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Remarks & Status Comments State
+  const [remarks, setRemarks] = useState<any[]>([]);
+  const [remarkInput, setRemarkInput] = useState("");
+  const [isSubmittingRemark, setIsSubmittingRemark] = useState(false);
+  const [loadingRemarks, setLoadingRemarks] = useState(false);
+
+  // Enquiry Form State
+  const [enquiryTitle, setEnquiryTitle] = useState("");
+  const [enquiryDesc, setEnquiryDesc] = useState("");
+  const [isSubmittingEnquiry, setIsSubmittingEnquiry] = useState(false);
+  const [enquirySuccess, setEnquirySuccess] = useState(false);
 
   const clientTasks = projectTasks.filter(t => t.status !== "Blocked");
   const activeProjTasks = selectedProject 
@@ -97,18 +113,104 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
     }
   };
 
+  const fetchRemarks = async () => {
+    if (!selectedProject) {
+      setRemarks([]);
+      return;
+    }
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch(`/api/v1/projects/${selectedProject.project_id}/remarks`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRemarks(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch project remarks", err);
+    }
+  };
+
+  const handlePostRemark = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!remarkInput.trim() || !selectedProject || isSubmittingRemark) return;
+
+    setIsSubmittingRemark(true);
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch(`/api/v1/projects/${selectedProject.project_id}/remarks`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          content: remarkInput
+        })
+      });
+
+      if (res.ok) {
+        const newRemark = await res.json();
+        setRemarks(prev => [...prev, newRemark]);
+        setRemarkInput("");
+      }
+    } catch (err) {
+      console.error("Failed to post remark", err);
+    } finally {
+      setIsSubmittingRemark(false);
+    }
+  };
+
+  const handlePostEnquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enquiryTitle.trim() || !selectedProject || isSubmittingEnquiry) return;
+
+    setIsSubmittingEnquiry(true);
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch(`/api/tasks`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: `[Client Enquiry] ${enquiryTitle}`,
+          description: enquiryDesc,
+          status: "Backlog",
+          project_id: selectedProject.project_id
+        })
+      });
+
+      if (res.ok) {
+        setEnquiryTitle("");
+        setEnquiryDesc("");
+        setEnquirySuccess(true);
+        setTimeout(() => setEnquirySuccess(false), 4000);
+      }
+    } catch (err) {
+      console.error("Failed to post enquiry", err);
+    } finally {
+      setIsSubmittingEnquiry(false);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     if (selectedProject) {
       setLoadingChat(true);
+      setLoadingRemarks(true);
       fetchGroupMessages().finally(() => setLoadingChat(false));
+      fetchRemarks().finally(() => setLoadingRemarks(false));
     }
   }, [selectedProject]);
 
-  // Polling for chat updates
+  // Polling for updates
   useEffect(() => {
     const interval = setInterval(() => {
       fetchGroupMessages();
+      fetchRemarks();
     }, 4000);
     return () => clearInterval(interval);
   }, [selectedProject]);
@@ -264,27 +366,111 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
             </div>
           )}
 
-          {/* Deliverables */}
-          <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-4">
-            <h2 className="text-xs font-bold font-mono text-white tracking-widest uppercase border-b border-zinc-800 pb-2">PROJECT DELIVERABLES</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 border border-zinc-850 rounded-lg hover:border-[#00E5FF]/20 transition-all flex items-center justify-between bg-zinc-950/40">
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-white text-[11px] font-mono truncate">Q3 Strategy Presentation</span>
-                  <span className="text-[9px] text-zinc-500 mt-1 font-mono">PDF • 4.2 MB • Ready</span>
+          {/* Project Remarks & Feedback */}
+          {selectedProject && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Status Remarks */}
+              <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-4 flex flex-col h-[320px]">
+                <h2 className="text-xs font-bold font-mono text-white tracking-widest uppercase border-b border-zinc-800 pb-2 flex items-center space-x-1.5">
+                  <MessageSquarePlus className="w-4 h-4 text-[#00E5FF]" />
+                  <span>PROJECT STATUS REMARKS</span>
+                </h2>
+                
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {loadingRemarks ? (
+                    <div className="h-full flex items-center justify-center text-zinc-650 text-[10px] font-mono animate-pulse">
+                      Retrieving status updates...
+                    </div>
+                  ) : remarks.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-zinc-605 p-4 text-[10px] font-mono">
+                      <span>No remarks or status comments recorded. Leave a feedback comment below.</span>
+                    </div>
+                  ) : (
+                    remarks.map((r, i) => (
+                      <div key={r.remark_id || i} className="p-2.5 rounded bg-zinc-950/60 border border-zinc-900 flex flex-col space-y-1 font-mono text-[10px]">
+                        <div className="flex justify-between items-center text-zinc-550 border-b border-zinc-900 pb-1">
+                          <span className="font-bold text-[#00E5FF]">{r.user_name || "Operator"}</span>
+                          <span>{new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p className="text-zinc-300 leading-relaxed break-words">{r.content}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <Download className="w-4 h-4 text-zinc-550 hover:text-[#00E5FF] cursor-pointer ml-2" />
-              </div>
 
-              <div className="p-3 border border-zinc-850 rounded-lg hover:border-[#00E5FF]/20 transition-all flex items-center justify-between bg-zinc-950/40">
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-white text-[11px] font-mono truncate">Brand Assets V2</span>
-                  <span className="text-[9px] text-zinc-500 mt-1 font-mono">ZIP • 128 MB • Last Week</span>
-                </div>
-                <Download className="w-4 h-4 text-zinc-550 hover:text-[#00E5FF] cursor-pointer ml-2" />
-              </div>
+                <form onSubmit={handlePostRemark} className="flex items-center space-x-2 border-t border-zinc-855 pt-3 shrink-0">
+                  <input
+                    type="text"
+                    placeholder="Comment on project status..."
+                    value={remarkInput}
+                    onChange={(e) => setRemarkInput(e.target.value)}
+                    className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-[#00E5FF]/40"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRemark || !remarkInput.trim()}
+                    className="p-1.5 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/30 hover:border-[#00E5FF]/50 rounded text-[#00E5FF] transition-all disabled:opacity-40"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              </section>
+
+              {/* Task Enquiry */}
+              <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-4 flex flex-col h-[320px]">
+                <h2 className="text-xs font-bold font-mono text-white tracking-widest uppercase border-b border-zinc-800 pb-2 flex items-center space-x-1.5">
+                  <FileText className="w-4 h-4 text-purple-400" />
+                  <span>TASK ENQUIRY / REQUEST</span>
+                </h2>
+
+                <form onSubmit={handlePostEnquiry} className="flex-1 flex flex-col space-y-3 justify-between">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-zinc-550 font-mono uppercase tracking-widest">Enquiry Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Requesting logo assets revision"
+                        value={enquiryTitle}
+                        onChange={(e) => setEnquiryTitle(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-purple-500/40"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-zinc-550 font-mono uppercase tracking-widest">Details / Description</label>
+                      <textarea
+                        placeholder="Detail your request or question here..."
+                        value={enquiryDesc}
+                        onChange={(e) => setEnquiryDesc(e.target.value)}
+                        className="w-full h-[80px] bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1.5 text-[11px] text-white font-mono focus:outline-none focus:border-purple-500/40 resize-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-zinc-850 pt-2 shrink-0">
+                    {enquirySuccess ? (
+                      <span className="flex items-center text-emerald-400 text-[10px] font-mono">
+                        <Check className="w-3.5 h-3.5 mr-1" /> Request Posted!
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-zinc-555 font-mono flex items-center">
+                        <AlertCircle className="w-3.5 h-3.5 mr-1 text-zinc-600" /> Adds task to queue
+                      </span>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isSubmittingEnquiry || !enquiryTitle.trim()}
+                      className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-500/50 rounded text-purple-400 font-bold uppercase tracking-widest text-[9px] font-mono transition-all disabled:opacity-40"
+                    >
+                      {isSubmittingEnquiry ? "Submitting..." : "Submit Request"}
+                    </button>
+                  </div>
+                </form>
+              </section>
             </div>
-          </section>
+          )}
 
         </div>
 
