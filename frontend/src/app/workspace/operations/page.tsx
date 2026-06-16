@@ -1290,9 +1290,9 @@ export default function OperationsPage() {
                           className="bg-[#111] border border-zinc-800 text-zinc-300 px-2 py-1.5 rounded outline-none focus:border-purple-500"
                         >
                           <option value="">-- USER --</option>
-                          {employeeUsers.map(emp => (
+                          {recruitableUsers.map(emp => (
                             <option key={emp.user_id} value={emp.user_id}>
-                              {emp.full_name}
+                              {emp.full_name} ({emp.user_type === "Client" ? "Client" : "Staff"})
                             </option>
                           ))}
                         </select>
