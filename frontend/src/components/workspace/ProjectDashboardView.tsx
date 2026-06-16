@@ -99,11 +99,31 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
     });
   };
 
+  // Save state
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // Pipeline Builders
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newCardDesc, setNewCardDesc] = useState("");
   const [newCardPriority, setNewCardPriority] = useState("Medium");
+  const [newCardStatus, setNewCardStatus] = useState("Pending");
+  const [newCardProgress, setNewCardProgress] = useState(0);
   const [selectedStageId, setSelectedStageId] = useState("stage-1");
+
+  // Manual save handler
+  const handleSave = async () => {
+    setIsSaving(true);
+    const success = await updateProject(project.project_id, {
+      pipeline,
+      timeline
+    });
+    setIsSaving(false);
+    if (success) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    }
+  };
 
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +133,9 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
       id: `c-${Date.now()}`,
       title: newCardTitle.trim(),
       desc: newCardDesc.trim(),
-      priority: newCardPriority
+      priority: newCardPriority,
+      status: newCardStatus,
+      progress: Number(newCardProgress)
     };
 
     const updatedPipeline = pipeline.map(stage => {
@@ -127,6 +149,28 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
     setNewCardTitle("");
     setNewCardDesc("");
     setNewCardPriority("Medium");
+    setNewCardStatus("Pending");
+    setNewCardProgress(0);
+    await persistChanges(updatedPipeline, timeline);
+  };
+
+  const handleUpdateCard = async (cardId: string, stageId: string, fields: any) => {
+    const updatedPipeline = pipeline.map(stage => {
+      if (stage.id === stageId) {
+        return {
+          ...stage,
+          cards: stage.cards.map((card: any) => {
+            if (card.id === cardId) {
+              return { ...card, ...fields };
+            }
+            return card;
+          })
+        };
+      }
+      return stage;
+    });
+
+    setPipeline(updatedPipeline);
     await persistChanges(updatedPipeline, timeline);
   };
 
@@ -228,9 +272,27 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
 
   // Stats for project overall progress
   const getOverallProgress = () => {
-    if (timeline.length === 0) return 0;
-    const sum = timeline.reduce((acc, curr) => acc + (curr.progress || 0), 0);
-    return Math.round(sum / timeline.length);
+    let totalElements = 0;
+    let progressSum = 0;
+
+    // Add pipeline cards progress
+    pipeline.forEach(stage => {
+      if (stage.cards) {
+        stage.cards.forEach((card: any) => {
+          progressSum += (card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0));
+          totalElements++;
+        });
+      }
+    });
+
+    // Add timeline milestones progress
+    timeline.forEach(item => {
+      progressSum += (item.progress || 0);
+      totalElements++;
+    });
+
+    if (totalElements === 0) return 0;
+    return Math.round(progressSum / totalElements);
   };
 
   return (
@@ -248,8 +310,19 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
               <h2 className="text-lg font-bold text-white tracking-wider uppercase mt-0.5">{project.title}</h2>
             </div>
           </div>
-          
           <div className="flex items-center space-x-4">
+            {/* Save Button for Builder Mode */}
+            {canEdit && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-3 py-1.5 rounded-lg border border-purple-500/35 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 text-[10px] font-bold transition-all uppercase flex items-center space-x-1.5 shadow-[0_0_15px_rgba(168,85,247,0.05)] disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save Changes"}</span>
+              </button>
+            )}
+
             {/* CEO Mode Toggle Button */}
             {isCEO && (
               <button
@@ -396,6 +469,73 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                           
                           {card.desc && <p className="text-[10px] text-zinc-500 leading-normal">{card.desc}</p>}
                           
+                          {/* Card Status & Progress Slider/Bar */}
+                          <div className="space-y-1.5 pt-1.5 border-t border-zinc-900/60">
+                            {canEdit ? (
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-center gap-1.5">
+                                  <select
+                                    value={card.status || "Pending"}
+                                    onChange={(e) => {
+                                      const st = e.target.value;
+                                      handleUpdateCard(card.id, stage.id, {
+                                        status: st,
+                                        progress: st === "Completed" ? 100 : st === "In Progress" ? 50 : 0
+                                      });
+                                    }}
+                                    className="bg-zinc-950 border border-zinc-800 text-[9px] px-1 py-0.5 rounded text-zinc-300 outline-none w-20 cursor-pointer"
+                                  >
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                  </select>
+                                  
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0)}
+                                    onChange={(e) => handleUpdateCard(card.id, stage.id, { progress: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+                                    className="bg-zinc-950 border border-zinc-800 text-[9px] text-zinc-300 px-1 py-0.5 rounded outline-none w-8 text-center"
+                                  />
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  value={card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0)}
+                                  onChange={(e) => handleUpdateCard(card.id, stage.id, { progress: Number(e.target.value) })}
+                                  className="w-full h-1 accent-[#00E5FF] cursor-pointer"
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-center text-[9px]">
+                                  <span className={`px-1 py-0.5 rounded uppercase font-semibold text-[8px] border ${
+                                    card.status === 'Completed' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' :
+                                    card.status === 'In Progress' ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/5' :
+                                    'border-zinc-800 text-zinc-500 bg-zinc-900/50'
+                                  }`}>
+                                    {card.status || "Pending"}
+                                  </span>
+                                  <span className="text-zinc-500 font-mono">
+                                    {card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-zinc-900 rounded-full h-1 overflow-hidden border border-zinc-800">
+                                  <div 
+                                    className={`h-full ${
+                                      card.status === 'Completed' ? 'bg-emerald-500' :
+                                      card.status === 'In Progress' ? 'bg-cyan-500' :
+                                      'bg-zinc-700'
+                                    }`}
+                                    style={{ width: `${card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
                           <div className="flex justify-between items-center pt-1 border-t border-zinc-900/60 text-[8px] font-bold">
                             <span className={`px-1 rounded ${
                               card.priority === 'High' ? 'bg-rose-950/20 text-rose-400 border border-rose-500/20' :
@@ -408,6 +548,7 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                             {canEdit && (
                               <div className="flex space-x-1">
                                 <button 
+                                  type="button"
                                   onClick={() => handleMoveCard(card.id, stage.id, "left")}
                                   className="text-zinc-500 hover:text-white bg-zinc-900 border border-zinc-800 p-0.5 rounded"
                                   title="Move Left"
@@ -415,6 +556,7 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                                   <ChevronLeft className="w-2.5 h-2.5" />
                                 </button>
                                 <button 
+                                  type="button"
                                   onClick={() => handleMoveCard(card.id, stage.id, "right")}
                                   className="text-zinc-500 hover:text-white bg-zinc-900 border border-zinc-800 p-0.5 rounded"
                                   title="Move Right"
@@ -442,7 +584,7 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                     value={newCardTitle}
                     onChange={(e) => setNewCardTitle(e.target.value)}
                     placeholder="e.g. Implement API route"
-                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF]"
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF] focus:shadow-[0_0_8px_rgba(0,229,255,0.05)]"
                   />
                 </div>
                 <div className="flex-1 space-y-1">
@@ -452,27 +594,54 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                     value={newCardDesc}
                     onChange={(e) => setNewCardDesc(e.target.value)}
                     placeholder="e.g. Setup authentication middlewares"
-                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF]"
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF] focus:shadow-[0_0_8px_rgba(0,229,255,0.05)]"
                   />
                 </div>
-                <div className="w-32 space-y-1">
+                <div className="w-24 space-y-1">
                   <label className="text-[9px] text-zinc-500 uppercase tracking-widest">Priority</label>
                   <select
                     value={newCardPriority}
                     onChange={(e) => setNewCardPriority(e.target.value)}
-                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF]"
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF] cursor-pointer"
                   >
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
                   </select>
                 </div>
-                <div className="w-48 space-y-1">
+                <div className="w-28 space-y-1">
+                  <label className="text-[9px] text-zinc-500 uppercase tracking-widest">Status</label>
+                  <select
+                    value={newCardStatus}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewCardStatus(val);
+                      setNewCardProgress(val === "Completed" ? 100 : val === "In Progress" ? 50 : 0);
+                    }}
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF] cursor-pointer"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+                <div className="w-20 space-y-1">
+                  <label className="text-[9px] text-zinc-500 uppercase tracking-widest">Progress (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newCardProgress}
+                    onChange={(e) => setNewCardProgress(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF]"
+                  />
+                </div>
+                <div className="w-36 space-y-1">
                   <label className="text-[9px] text-zinc-500 uppercase tracking-widest">Target Stage</label>
                   <select
                     value={selectedStageId}
                     onChange={(e) => setSelectedStageId(e.target.value)}
-                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF]"
+                    className="w-full bg-[#08080c] border border-zinc-800 text-zinc-200 px-2.5 py-1.5 rounded outline-none focus:border-[#00E5FF] cursor-pointer"
                   >
                     {pipeline.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -481,7 +650,7 @@ export default function ProjectDashboardView({ project, onClose }: ProjectDashbo
                 </div>
                 <button
                   type="submit"
-                  className="bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/35 text-[#00E5FF] px-4 py-1.5 rounded font-bold uppercase transition-colors flex items-center space-x-1.5 h-[34px]"
+                  className="bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/35 text-[#00E5FF] px-4 py-1.5 rounded font-bold uppercase transition-colors flex items-center space-x-1.5 h-[34px] shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Card</span>

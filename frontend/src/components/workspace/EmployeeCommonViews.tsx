@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSevenStore, Task } from "@/store/useSevenStore";
-import { CheckSquare, Clock, AlertOctagon, Calendar, Bell, Send, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import { CheckSquare, Clock, AlertOctagon, Calendar, Bell, Send, CheckCircle2, AlertTriangle, ExternalLink, MessageSquare, UserPlus, Check, FolderKanban } from "lucide-react";
 import WorkLogger from "./WorkLogger";
 
 interface EmployeeTasksViewProps {
@@ -526,6 +526,325 @@ export function EmployeeCustomLogsView() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+export function EmployeeClientCorrespondenceView() {
+  const { 
+    dashboardData, 
+    tasks, 
+    fetchTasks, 
+    allUsers, 
+    fetchAllUsers, 
+    assignTask, 
+    updateTaskStatus, 
+    userProfile, 
+    simulatedUser 
+  } = useSevenStore();
+
+  const currentUser = simulatedUser || userProfile;
+  const activeProjects = dashboardData?.active_projects || [];
+
+  const [selectedProject, setSelectedProject] = useState<any>(
+    activeProjects.length > 0 ? activeProjects[0] : null
+  );
+
+  const [remarks, setRemarks] = useState<any[]>([]);
+  const [remarkInput, setRemarkInput] = useState("");
+  const [isSubmittingRemark, setIsSubmittingRemark] = useState(false);
+  const [loadingRemarks, setLoadingRemarks] = useState(false);
+
+  // Sync selected project if activeProjects loads
+  useEffect(() => {
+    if (activeProjects.length > 0 && !selectedProject) {
+      setSelectedProject(activeProjects[0]);
+    }
+  }, [activeProjects, selectedProject]);
+
+  // Fetch all tasks and all users on mount
+  useEffect(() => {
+    fetchTasks();
+    if (allUsers.length === 0) {
+      fetchAllUsers();
+    }
+  }, []);
+
+  const fetchRemarks = async () => {
+    if (!selectedProject) return;
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch(`/api/v1/projects/${selectedProject.project_id}/remarks`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRemarks(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch project remarks", err);
+    }
+  };
+
+  // Poll remarks for selected project
+  useEffect(() => {
+    if (selectedProject) {
+      setLoadingRemarks(true);
+      fetchRemarks().finally(() => setLoadingRemarks(false));
+      
+      const interval = setInterval(fetchRemarks, 4000);
+      return () => clearInterval(interval);
+    } else {
+      setRemarks([]);
+    }
+  }, [selectedProject]);
+
+  const handlePostRemark = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!remarkInput.trim() || !selectedProject || isSubmittingRemark) return;
+
+    setIsSubmittingRemark(true);
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch(`/api/v1/projects/${selectedProject.project_id}/remarks`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          content: remarkInput
+        })
+      });
+
+      if (res.ok) {
+        const newRemark = await res.json();
+        setRemarks(prev => [...prev, newRemark]);
+        setRemarkInput("");
+      }
+    } catch (err) {
+      console.error("Failed to post remark", err);
+    } finally {
+      setIsSubmittingRemark(false);
+    }
+  };
+
+  const handleClaimTask = async (taskId: string) => {
+    if (!currentUser) return;
+    await assignTask(taskId, currentUser.user_id);
+    await updateTaskStatus(taskId, "In Progress");
+    fetchTasks();
+  };
+
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    await updateTaskStatus(taskId, newStatus);
+    fetchTasks();
+  };
+
+  // Filter client enquiries for selected project
+  const clientEnquiries = tasks.filter(t => 
+    t.project_id === selectedProject?.project_id && 
+    (t.title || "").startsWith("[Client Enquiry]")
+  );
+
+  return (
+    <div className="flex-1 flex flex-col space-y-6">
+      {/* Project Selector Header */}
+      <div className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider">Client Correspondence Center</h2>
+          <p className="text-[10px] text-zinc-550 font-mono mt-0.5">READ CLIENT STATUS REMARKS AND MANAGE DIRECT REQUEST TICKETS</p>
+        </div>
+
+        {activeProjects.length > 0 ? (
+          <div className="flex items-center space-x-3 bg-zinc-950 px-3.5 py-1.5 rounded-lg border border-zinc-800 text-xs font-mono w-full sm:w-auto">
+            <span className="text-zinc-550 uppercase text-[10px]">Active Project:</span>
+            <select
+              value={selectedProject?.project_id || ""}
+              onChange={(e) => {
+                const proj = activeProjects.find((p: any) => p.project_id === e.target.value);
+                if (proj) setSelectedProject(proj);
+              }}
+              className="bg-transparent border-none text-white focus:outline-none text-xs ml-2 cursor-pointer font-bold"
+            >
+              {activeProjects.map((p: any) => (
+                <option key={p.project_id} value={p.project_id} className="bg-zinc-950 text-white">
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="text-zinc-650 text-xs font-mono">No active projects assigned to your squad.</div>
+        )}
+      </div>
+
+      {selectedProject ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Client Remarks & Chat Reply */}
+          <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col h-[500px]">
+            <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2 border-b border-zinc-850 pb-3 mb-4 shrink-0">
+              <MessageSquare className="w-4 h-4 text-[#00E5FF]" />
+              <span>CLIENT STATUS REMARKS & UPDATE STREAM</span>
+            </h3>
+
+            {/* Remarks List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-4 custom-scrollbar flex flex-col">
+              {loadingRemarks ? (
+                <div className="h-full flex items-center justify-center text-zinc-650 text-[11px] font-mono animate-pulse">
+                  SYNCING WITH CORRESPONDENCE STREAM...
+                </div>
+              ) : remarks.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-zinc-600 p-6 text-xs font-mono">
+                  <span>No feedback remarks posted by the client yet. Post a status update below to start correspondence.</span>
+                </div>
+              ) : (
+                remarks.map((r: any) => {
+                  const isClient = r.sender?.user_type === "Client";
+                  return (
+                    <div 
+                      key={r.remark_id} 
+                      className={`p-3 rounded-lg border flex flex-col space-y-1.5 font-mono text-[11px] max-w-[90%] ${
+                        isClient 
+                          ? "bg-purple-950/10 border-purple-900/30 text-purple-250 self-start mr-auto" 
+                          : "bg-cyan-950/10 border-cyan-900/30 text-cyan-250 self-end ml-auto"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center space-x-4 border-b border-zinc-900/50 pb-1 text-[9px] text-zinc-500">
+                        <span className={`font-bold ${isClient ? "text-purple-400" : "text-cyan-400"}`}>
+                          {r.sender?.full_name || "Unknown User"} ({isClient ? "Client" : "Team Member"})
+                        </span>
+                        <span>{new Date(r.created_at).toLocaleTimeString()}</span>
+                      </div>
+                      <p className="leading-relaxed text-zinc-300 break-words whitespace-pre-wrap">{r.content}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Reply Input Form */}
+            <form onSubmit={handlePostRemark} className="flex items-center space-x-2 border-t border-zinc-850 pt-3 shrink-0">
+              <input
+                type="text"
+                placeholder="Type status remark response..."
+                value={remarkInput}
+                onChange={(e) => setRemarkInput(e.target.value)}
+                className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500/40"
+              />
+              <button
+                type="submit"
+                disabled={isSubmittingRemark || !remarkInput.trim()}
+                className="bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 text-cyan-400 px-4 py-2 rounded font-mono text-xs font-bold flex items-center space-x-1.5 transition-all disabled:opacity-40"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>POST</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Right Column: Client Task Enquiries */}
+          <div className="bg-[#0e0e0e]/95 border border-zinc-800 rounded-xl p-5 flex flex-col h-[500px]">
+            <h3 className="text-xs font-bold font-mono tracking-widest text-white uppercase flex items-center space-x-2 border-b border-zinc-850 pb-3 mb-4 shrink-0">
+              <CheckSquare className="w-4 h-4 text-purple-400" />
+              <span>CLIENT REQUESTS & ENQUIRIES QUEUE</span>
+            </h3>
+
+            {/* Enquiries List */}
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 custom-scrollbar">
+              {clientEnquiries.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-center text-zinc-655 text-xs font-mono">
+                  No direct client task requests logged for this project.
+                </div>
+              ) : (
+                clientEnquiries.map((task: any) => {
+                  const assignedUser = allUsers.find(u => u.user_id === task.assigned_user_id);
+                  const isClaimedByMe = task.assigned_user_id === currentUser?.user_id;
+
+                  return (
+                    <div key={task.task_id} className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-3 font-mono text-xs">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1 flex-1 min-w-0 mr-4">
+                          <h4 className="text-white font-bold truncate">
+                            {task.title.replace("[Client Enquiry] ", "")}
+                          </h4>
+                          <p className="text-[11px] text-zinc-450 leading-relaxed max-h-16 overflow-y-auto custom-scrollbar">
+                            {task.description || "No description provided."}
+                          </p>
+                        </div>
+                        <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded border font-bold ${
+                          task.status === "Done" || task.status === "Deployed"
+                            ? "bg-emerald-950/20 border-emerald-900/40 text-emerald-400"
+                            : task.status === "In Progress"
+                            ? "bg-cyan-950/20 border-cyan-900/40 text-cyan-400"
+                            : "bg-zinc-900 border-zinc-800 text-zinc-500"
+                        }`}>
+                          {task.status}
+                        </span>
+                      </div>
+
+                      {/* Assignment & Controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-900/60 pt-2 text-[10px] text-zinc-550">
+                        <div>
+                          {task.assigned_user_id ? (
+                            <span>
+                              ASSIGNED: <strong className="text-zinc-350">{assignedUser?.full_name || "Resource"}</strong>
+                            </span>
+                          ) : (
+                            <span className="text-amber-500 font-bold animate-pulse">UNASSIGNED REQUEST</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {!task.assigned_user_id ? (
+                            <button
+                              onClick={() => handleClaimTask(task.task_id)}
+                              className="bg-purple-500/10 border border-purple-500/25 hover:bg-purple-500/20 text-purple-400 px-2.5 py-1 rounded text-[10px] font-bold flex items-center space-x-1 transition-colors"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                              <span>CLAIM TICKET</span>
+                            </button>
+                          ) : (
+                            isClaimedByMe && (
+                              <div className="flex items-center space-x-1.5">
+                                <span className="text-[9px] text-zinc-550">STATUS:</span>
+                                <select
+                                  value={task.status}
+                                  onChange={(e) => handleStatusChange(task.task_id, e.target.value)}
+                                  className="bg-zinc-905 border border-zinc-800 text-zinc-300 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:border-cyan-500 cursor-pointer"
+                                >
+                                  <option value="Backlog">Backlog</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="QA">QA</option>
+                                  <option value="Review">Review</option>
+                                  <option value="Done">Done</option>
+                                  <option value="Deployed">Deployed</option>
+                                </select>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Work Logger Form for Claimed Task */}
+                      {isClaimedByMe && task.status !== "Done" && task.status !== "Deployed" && (
+                        <div className="mt-3 pt-3 border-t border-zinc-900/60">
+                          <p className="text-[9px] text-zinc-550 uppercase tracking-widest mb-1.5 font-bold">Log work on this ticket:</p>
+                          <WorkLogger taskId={task.task_id} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-12 text-center text-xs font-mono text-zinc-650 bg-[#0e0e0e] border border-zinc-850 rounded-xl">
+          Select an active project from the squad selector to load correspondence.
+        </div>
+      )}
     </div>
   );
 }

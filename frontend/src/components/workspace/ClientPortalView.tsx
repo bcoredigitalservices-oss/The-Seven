@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Project, Task } from "@/store/useSevenStore";
+import { Project, Task, useSevenStore } from "@/store/useSevenStore";
 import { 
   Download, 
   ExternalLink, 
@@ -16,9 +16,11 @@ import {
   MessageSquarePlus,
   AlertCircle,
   Check,
-  FileText
+  FileText,
+  CheckCircle2
 } from "lucide-react";
 import { encryptMessage, decryptMessage } from "@/utils/crypto";
+import ProjectDashboardView from "./ProjectDashboardView";
 
 interface ClientPortalViewProps {
   activeProjects: Project[];
@@ -26,9 +28,119 @@ interface ClientPortalViewProps {
 }
 
 export default function ClientPortalView({ activeProjects, projectTasks }: ClientPortalViewProps) {
+  const { fetchDashboardOverview, fetchTasks, fetchAllUsers, allUsers } = useSevenStore();
+
   const [selectedProject, setSelectedProject] = useState<Project | null>(
     activeProjects.length > 0 ? activeProjects[0] : null
   );
+
+  // Fallback defaults for pipeline & timeline
+  const defaultPipeline = [
+    {
+      id: "stage-1",
+      name: "Scoping & Requirements",
+      status: "In Progress",
+      cards: [
+        { id: "c-1", title: "Define Scope", desc: "Detail project deliverables", priority: "High", progress: 50 }
+      ]
+    },
+    {
+      id: "stage-2",
+      name: "Architecture & Design",
+      status: "Pending",
+      cards: []
+    },
+    {
+      id: "stage-3",
+      name: "Core Development",
+      status: "Pending",
+      cards: []
+    },
+    {
+      id: "stage-4",
+      name: "QA & Testing",
+      status: "Pending",
+      cards: []
+    },
+    {
+      id: "stage-5",
+      name: "Deployment",
+      status: "Pending",
+      cards: []
+    }
+  ];
+
+  const defaultTimeline = [
+    { id: "t-1", name: "Inception & Design", start: "2026-06-15", end: "2026-06-20", status: "Completed", progress: 100 },
+    { id: "t-2", name: "Backend Core Build", start: "2026-06-21", end: "2026-06-30", status: "In Progress", progress: 50 },
+    { id: "t-3", name: "Frontend Components", start: "2026-07-01", end: "2026-07-08", status: "Pending", progress: 0 },
+    { id: "t-4", name: "System Integration & QA", start: "2026-07-09", end: "2026-07-15", status: "Pending", progress: 0 }
+  ];
+
+  const getProjectPipeline = (proj: Project) => {
+    if (proj.pipeline && proj.pipeline.length > 0) {
+      return proj.pipeline;
+    }
+    return defaultPipeline;
+  };
+
+  const getProjectTimeline = (proj: Project) => {
+    if (proj.timeline && proj.timeline.length > 0) {
+      return proj.timeline;
+    }
+    return defaultTimeline;
+  };
+
+  // Sync selectedProject with props updating in real time
+  useEffect(() => {
+    if (activeProjects.length > 0) {
+      const currentId = selectedProject?.project_id;
+      const updated = activeProjects.find(p => p.project_id === currentId) || activeProjects[0];
+      setSelectedProject(updated);
+    } else {
+      setSelectedProject(null);
+    }
+  }, [activeProjects]);
+
+  // Fetch all users on mount
+  useEffect(() => {
+    if (allUsers.length === 0) {
+      fetchAllUsers();
+    }
+  }, []);
+
+  const [workLogs, setWorkLogs] = useState<any[]>([]);
+  const [loadingWorkLogs, setLoadingWorkLogs] = useState(false);
+
+  const fetchWorkLogs = async () => {
+    if (!selectedProject) return;
+    const token = localStorage.getItem("seven_token");
+    try {
+      const res = await fetch("/api/v1/worklogs", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkLogs(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch work logs", err);
+    }
+  };
+
+  // Poll work logs when project is selected
+  useEffect(() => {
+    if (selectedProject) {
+      setLoadingWorkLogs(true);
+      fetchWorkLogs().finally(() => setLoadingWorkLogs(false));
+      const interval = setInterval(fetchWorkLogs, 6000);
+      return () => clearInterval(interval);
+    } else {
+      setWorkLogs([]);
+    }
+  }, [selectedProject]);
+  
+  const [showTelemetryReport, setShowTelemetryReport] = useState(false);
   
   // Chat state
   const [chatMessages, setChatMessages] = useState<any[]>([]);
@@ -85,6 +197,34 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
       default:
         return "In Queue";
     }
+  };
+
+  const getOverallProgress = () => {
+    if (!selectedProject) return 0;
+    let totalElements = 0;
+    let progressSum = 0;
+
+    const pipeline = getProjectPipeline(selectedProject);
+    const timeline = getProjectTimeline(selectedProject);
+
+    // Add pipeline cards progress
+    pipeline.forEach((stage: any) => {
+      if (stage.cards) {
+        stage.cards.forEach((card: any) => {
+          progressSum += (card.progress !== undefined ? card.progress : (card.status === 'Completed' ? 100 : card.status === 'In Progress' ? 50 : 0));
+          totalElements++;
+        });
+      }
+    });
+
+    // Add timeline milestones progress
+    timeline.forEach((item: any) => {
+      progressSum += (item.progress || 0);
+      totalElements++;
+    });
+
+    if (totalElements === 0) return 0;
+    return Math.round(progressSum / totalElements);
   };
 
   // Group Secret Key for E2E
@@ -154,6 +294,8 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
         const newRemark = await res.json();
         setRemarks(prev => [...prev, newRemark]);
         setRemarkInput("");
+        fetchDashboardOverview();
+        fetchTasks();
       }
     } catch (err) {
       console.error("Failed to post remark", err);
@@ -188,6 +330,8 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
         setEnquiryDesc("");
         setEnquirySuccess(true);
         setTimeout(() => setEnquirySuccess(false), 4000);
+        fetchDashboardOverview();
+        fetchTasks();
       }
     } catch (err) {
       console.error("Failed to post enquiry", err);
@@ -303,61 +447,109 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
             <>
               {/* Project Progress */}
               <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-4">
-                <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
-                  <h3 className="font-bold text-white font-mono text-xs uppercase tracking-wider">{selectedProject.title} Progress</h3>
-                  <span className="text-xs font-bold text-[#00E5FF] font-mono">
-                    {activeProjTasks.length > 0 
-                      ? Math.round((activeProjTasks.filter(t => t.status === "Done" || t.status === "Deployed").length / activeProjTasks.length) * 100) 
-                      : 0}% Complete
-                  </span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-800 pb-3 gap-3">
+                  <div>
+                    <h3 className="font-bold text-white font-mono text-xs uppercase tracking-wider">{selectedProject.title} Progress</h3>
+                    <p className="text-[10px] text-zinc-550 font-mono mt-0.5">Dual-source real-time execution statistics</p>
+                  </div>
+                  <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowTelemetryReport(true)}
+                      className="px-2.5 py-1 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 border border-[#00E5FF]/30 hover:border-[#00E5FF]/50 text-[#00E5FF] rounded text-[10px] font-bold uppercase transition-all duration-150 tracking-wider flex items-center space-x-1.5"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      <span>View Live Telemetry Report</span>
+                    </button>
+                    <span className="text-xs font-bold text-[#00E5FF] font-mono">
+                      {getOverallProgress()}% Complete
+                    </span>
+                  </div>
                 </div>
                 <div className="w-full bg-zinc-950 rounded-full h-3 overflow-hidden border border-zinc-850">
                   <div 
                     className="bg-[#00E5FF] h-3 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(0,229,255,0.4)]" 
                     style={{ 
-                      width: `${activeProjTasks.length > 0 
-                        ? Math.round((activeProjTasks.filter(t => t.status === "Done" || t.status === "Deployed").length / activeProjTasks.length) * 100) 
-                        : 0}%` 
+                      width: `${getOverallProgress()}%` 
                     }}
                   />
                 </div>
               </section>
 
-              {/* Milestone Tracker */}
-              <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 flex flex-col">
-                <div className="bg-zinc-950/60 px-4 py-2 border-b border-zinc-800 rounded-t-lg">
-                  <h2 className="text-xs font-bold font-mono text-white tracking-widest uppercase">Project Milestone Tracker</h2>
+              {/* Project Development Timeline & Milestones */}
+              <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-6 flex flex-col">
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                  <div>
+                    <h3 className="text-xs font-bold font-mono text-white tracking-widest uppercase">Project Development Timeline & Milestones</h3>
+                    <p className="text-[10px] text-zinc-555 font-mono mt-0.5">High-level phase tracking and milestone checklist</p>
+                  </div>
                 </div>
-                <ul className="divide-y divide-zinc-900 max-h-[300px] overflow-y-auto custom-scrollbar">
-                  {activeProjTasks.length > 0 ? (
-                    activeProjTasks.map(task => (
-                      <li key={task.task_id} className="p-4 hover:bg-zinc-950/20 transition-colors flex items-start space-x-4">
-                        <div className="mt-0.5">
-                          {getStatusIcon(task.status)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-white font-mono truncate">{task.title}</h4>
-                          {task.description && (
-                            <p className="text-zinc-500 text-[11px] font-mono mt-1 leading-relaxed line-clamp-2">{task.description}</p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end justify-center">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase border ${
-                            getStatusLabel(task.status) === 'Completed' ? 'bg-emerald-950/20 border-emerald-900/35 text-emerald-400' :
-                            getStatusLabel(task.status) === 'In Progress' ? 'bg-cyan-950/20 border-cyan-900/35 text-cyan-400' :
-                            'bg-zinc-900 border-zinc-800 text-zinc-500'
+
+                {/* Horizontal / Visual Phase Progress */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-zinc-950/40 p-4 border border-zinc-900 rounded-xl">
+                  {getProjectTimeline(selectedProject).map((milestone: any, idx: number) => {
+                    const isCompleted = milestone.progress === 100 || milestone.status === "Completed";
+                    const isInProgress = milestone.status === "In Progress" || (milestone.progress > 0 && milestone.progress < 100);
+                    return (
+                      <div key={milestone.id || idx} className="relative flex flex-col space-y-1.5 p-3 rounded-lg bg-zinc-950 border border-zinc-900 font-mono text-[10px]">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[8px] text-zinc-550 uppercase">Phase {idx + 1}</span>
+                          <span className={`text-[8px] uppercase font-bold ${
+                            isCompleted ? "text-emerald-400" : isInProgress ? "text-cyan-400" : "text-zinc-600"
                           }`}>
-                            {getStatusLabel(task.status)}
+                            {milestone.status || (isCompleted ? "Completed" : isInProgress ? "In Progress" : "Pending")}
                           </span>
                         </div>
-                      </li>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center text-xs font-mono text-zinc-650">
-                      No active milestones tracked for this project.
-                    </div>
-                  )}
-                </ul>
+                        <h4 className="font-bold text-white truncate text-[11px]">{milestone.name}</h4>
+                        <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden border border-zinc-850 mt-1">
+                          <div 
+                            className={`h-full rounded-full ${isCompleted ? "bg-emerald-400" : isInProgress ? "bg-cyan-400" : "bg-zinc-800"}`}
+                            style={{ width: `${milestone.progress || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[8px] text-zinc-500 pt-0.5">
+                          <span>{milestone.start || "TBD"}</span>
+                          <span>{milestone.progress || 0}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Sub-section: Granular Execution Deliverables */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-mono font-bold text-zinc-405 uppercase tracking-wider">Granular Execution Deliverables</h4>
+                  <ul className="divide-y divide-zinc-900 bg-zinc-950/20 border border-zinc-900 rounded-xl overflow-hidden max-h-[200px] overflow-y-auto custom-scrollbar">
+                    {activeProjTasks.length > 0 ? (
+                      activeProjTasks.map(task => (
+                        <li key={task.task_id} className="p-3.5 hover:bg-zinc-950/20 transition-colors flex items-start space-x-4">
+                          <div className="mt-0.5">
+                            {getStatusIcon(task.status)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-[11px] font-bold text-white font-mono truncate">{task.title}</h4>
+                            {task.description && (
+                              <p className="text-zinc-500 text-[10px] font-mono mt-0.5 leading-relaxed line-clamp-1">{task.description}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end justify-center ml-2 shrink-0">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-mono uppercase border ${
+                              getStatusLabel(task.status) === 'Completed' ? 'bg-emerald-950/20 border-emerald-900/35 text-emerald-400' :
+                              getStatusLabel(task.status) === 'In Progress' ? 'bg-cyan-950/20 border-cyan-900/35 text-cyan-400' :
+                              'bg-zinc-900 border-zinc-800 text-zinc-500'
+                            }`}>
+                              {getStatusLabel(task.status)}
+                            </span>
+                          </div>
+                        </li>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-xs font-mono text-zinc-650">
+                        No granular deliverables logged.
+                      </div>
+                    )}
+                  </ul>
+                </div>
               </section>
             </>
           ) : (
@@ -472,6 +664,57 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
             </div>
           )}
 
+          {/* Real-time Team Activity Log */}
+          {selectedProject && (
+            <section className="bg-[#0e0e0e]/90 border border-zinc-800 rounded-xl p-5 space-y-4 mt-6">
+              <div className="border-b border-zinc-800 pb-3">
+                <h3 className="text-xs font-bold font-mono text-white tracking-widest uppercase flex items-center space-x-1.5">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <span>REAL-TIME TEAM ACTIVITY FEED</span>
+                </h3>
+                <p className="text-[10px] text-zinc-555 font-mono mt-0.5">Live work sessions and updates logged by your project team</p>
+              </div>
+
+              <div className="max-h-[220px] overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+                {loadingWorkLogs ? (
+                  <div className="py-8 text-center text-zinc-650 text-[10px] font-mono animate-pulse">
+                    SYNCING WITH TEAM LOGS...
+                  </div>
+                ) : workLogs.length === 0 ? (
+                  <div className="py-8 text-center text-zinc-605 text-[10px] font-mono">
+                    No recent work sessions recorded by the team.
+                  </div>
+                ) : (
+                  workLogs.map((log) => {
+                    const user = allUsers.find(u => u.user_id === log.user_id);
+                    const task = projectTasks.find(t => t.task_id === log.task_id);
+                    return (
+                      <div key={log.log_id} className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] font-mono">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-white">{user?.full_name || "Team Member"}</span>
+                            <span className="text-[8px] px-1 py-0.2 bg-zinc-900 text-zinc-400 border border-zinc-850 uppercase rounded font-bold">
+                              {user?.department || "Execution"}
+                            </span>
+                          </div>
+                          <p className="text-zinc-350 leading-relaxed max-w-xl break-words">
+                            Logged <strong className="text-emerald-400">{log.hours_logged} hours</strong> on &ldquo;{task?.title || "Project Tasks"}&rdquo;
+                          </p>
+                          {log.log_content && (
+                            <p className="text-[10px] text-zinc-500 italic mt-0.5">&ldquo;{log.log_content}&rdquo;</p>
+                          )}
+                        </div>
+                        <div className="text-right text-[9px] text-zinc-550 shrink-0 self-end sm:self-center">
+                          {new Date(log.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+          )}
+
         </div>
 
         {/* Right Column: Secure Team Communication */}
@@ -551,6 +794,12 @@ export default function ClientPortalView({ activeProjects, projectTasks }: Clien
         </div>
 
       </div>
+      {showTelemetryReport && selectedProject && (
+        <ProjectDashboardView 
+          project={selectedProject} 
+          onClose={() => setShowTelemetryReport(false)} 
+        />
+      )}
     </div>
   );
 }

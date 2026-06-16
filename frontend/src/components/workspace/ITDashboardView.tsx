@@ -4,14 +4,14 @@ import React, { useState } from "react";
 import { Task } from "@/store/useSevenStore";
 import { Terminal, CheckSquare, Clock, ArrowRight, Activity, FolderKanban } from "lucide-react";
 import WorkLogger from "./WorkLogger";
-import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView } from "./EmployeeCommonViews";
+import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView, EmployeeClientCorrespondenceView } from "./EmployeeCommonViews";
 
 interface ITDashboardViewProps {
   assignedTasks: Task[];
 }
 
 export default function ITDashboardView({ assignedTasks }: ITDashboardViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs">("hub");
+  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs" | "client-correspondence">("hub");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     assignedTasks.length > 0 ? assignedTasks[0] : null
   );
@@ -47,7 +47,7 @@ export default function ITDashboardView({ assignedTasks }: ITDashboardViewProps)
               : "text-zinc-550 hover:text-white"
           }`}
         >
-          TERMINAL HUB
+          DAILY HUB
         </button>
         <button
           onClick={() => setActiveSubTab("tasks")}
@@ -84,6 +84,16 @@ export default function ITDashboardView({ assignedTasks }: ITDashboardViewProps)
         >
           DAILY CUSTOM LOGS
         </button>
+        <button
+          onClick={() => setActiveSubTab("client-correspondence")}
+          className={`pb-1 transition-all ${
+            activeSubTab === "client-correspondence"
+              ? "text-[#00E5FF] border-b border-[#00E5FF] font-bold"
+              : "text-zinc-550 hover:text-white"
+          }`}
+        >
+          CLIENT CORRESPONDENCE
+        </button>
       </div>
 
       {activeSubTab === "hub" && (
@@ -101,7 +111,7 @@ export default function ITDashboardView({ assignedTasks }: ITDashboardViewProps)
 
             <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
               {assignedTasks.length === 0 ? (
-                <div className="text-center py-12 text-xs font-mono text-zinc-655">No tasks currently assigned to your node.</div>
+                <div className="text-center py-12 text-xs font-mono text-zinc-650">No tasks currently assigned to your node.</div>
               ) : (
                 assignedTasks.map(task => {
                   const isSelected = selectedTask?.task_id === task.task_id;
@@ -186,6 +196,10 @@ export default function ITDashboardView({ assignedTasks }: ITDashboardViewProps)
 
       {activeSubTab === "custom-logs" && (
         <EmployeeCustomLogsView />
+      )}
+
+      {activeSubTab === "client-correspondence" && (
+        <EmployeeClientCorrespondenceView />
       )}
 
     </div>

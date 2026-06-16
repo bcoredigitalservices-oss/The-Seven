@@ -1322,6 +1322,26 @@ def get_worklogs(
         if simulated:
             user_to_check = simulated
 
+    if user_to_check.user_type == "Client":
+        from sqlalchemy import or_, String
+        active_projects = db.query(models.Project).filter(
+            or_(
+                models.Project.client_id == user_to_check.user_id,
+                models.Project.client_ids.cast(String).contains(user_to_check.user_id)
+            ),
+            models.Project.status == "Active"
+        ).all()
+        project_ids = [p.project_id for p in active_projects]
+        if not project_ids:
+            return []
+        
+        project_tasks = db.query(models.Task).filter(models.Task.project_id.in_(project_ids)).all()
+        task_ids = [t.task_id for t in project_tasks]
+        if not task_ids:
+            return []
+            
+        return db.query(models.WorkLog).filter(models.WorkLog.task_id.in_(task_ids)).all()
+
     if user_to_check.role_tier == 4:
         # Tier 4: Execution / Employee - only their own logs
         return db.query(models.WorkLog).filter(models.WorkLog.user_id == user_to_check.user_id).all()

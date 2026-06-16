@@ -6,14 +6,14 @@ import { Briefcase, Landmark, ClipboardCheck, PhoneCall, Users, Plus, Check } fr
 import LeadTriageBoard from "./LeadTriageBoard";
 import QuotationTrigger from "./QuotationTrigger";
 import WorkLogger from "./WorkLogger";
-import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView } from "./EmployeeCommonViews";
+import { EmployeeTasksView, EmployeeNotificationsView, EmployeeCustomLogsView, EmployeeClientCorrespondenceView } from "./EmployeeCommonViews";
 
 interface CorporateDashboardViewProps {
   assignedTasks: Task[];
 }
 
 export default function CorporateDashboardView({ assignedTasks }: CorporateDashboardViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs">("hub");
+  const [activeSubTab, setActiveSubTab] = useState<"hub" | "tasks" | "notifications" | "custom-logs" | "client-correspondence">("hub");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     assignedTasks.length > 0 ? assignedTasks[0] : null
   );
@@ -98,6 +98,16 @@ export default function CorporateDashboardView({ assignedTasks }: CorporateDashb
           }`}
         >
           DAILY CUSTOM LOGS
+        </button>
+        <button
+          onClick={() => setActiveSubTab("client-correspondence")}
+          className={`pb-1 transition-all ${
+            activeSubTab === "client-correspondence"
+              ? "text-[#00E5FF] border-b border-[#00E5FF] font-bold"
+              : "text-zinc-555 hover:text-white"
+          }`}
+        >
+          CLIENT CORRESPONDENCE
         </button>
       </div>
 
@@ -252,6 +262,10 @@ export default function CorporateDashboardView({ assignedTasks }: CorporateDashb
 
       {activeSubTab === "custom-logs" && (
         <EmployeeCustomLogsView />
+      )}
+
+      {activeSubTab === "client-correspondence" && (
+        <EmployeeClientCorrespondenceView />
       )}
 
     </div>
